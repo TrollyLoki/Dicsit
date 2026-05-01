@@ -1,5 +1,6 @@
 package net.trollyloki.discit.monitoring;
 
+import net.dv8tion.jda.api.utils.TimeFormat;
 import net.trollyloki.discit.Discit;
 import net.trollyloki.discit.GuildManager;
 import net.trollyloki.discit.Server;
@@ -155,7 +156,8 @@ public class ServerMonitor implements Closeable {
                         return;
                     }
 
-                    guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went down");
+                    long timeoutMillis = (System.nanoTime() - lastResponseNanos) / 1_000_000;
+                    guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went down " + TimeFormat.RELATIVE.before(timeoutMillis));
 
                 }, alertDelay.toNanos(), TimeUnit.NANOSECONDS);
             }
@@ -194,8 +196,8 @@ public class ServerMonitor implements Closeable {
         offlineFuture = updateExecutor.schedule(() -> {
             setMDC(guildManager);
 
-            long millis = (System.nanoTime() - lastResponseNanos) / 1_000_000;
-            LOGGER.info("No state responses from {} in the last {} milliseconds", serverNameForLog(server.getName()), millis);
+            long timeoutMillis = (System.nanoTime() - lastResponseNanos) / 1_000_000;
+            LOGGER.info("No state responses from {} in the last {} milliseconds", serverNameForLog(server.getName()), timeoutMillis);
 
             if (lastStatus == ServerStatus.PLAYING) {
                 gameStateCache.reset();
