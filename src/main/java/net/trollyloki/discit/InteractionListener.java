@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 
 import static net.trollyloki.discit.InteractionUtils.getGuildManager;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
+import static net.trollyloki.discit.interactions.AboutInteractions.ABOUT_COMMAND_NAME;
+import static net.trollyloki.discit.interactions.AboutInteractions.onAboutCommand;
 import static net.trollyloki.discit.interactions.AddInteractions.*;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.*;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
@@ -62,6 +64,7 @@ public class InteractionListener extends ListenerAdapter {
         setMDC(event);
         try {
             switch (event.getName()) {
+                case ABOUT_COMMAND_NAME -> onAboutCommand(event);
                 case SETTINGS_COMMAND_NAME -> onSettingsCommand(event);
                 case ADD_COMMAND_NAME -> onAddCommand(event);
                 case LIST_COMMAND_NAME -> onListCommand(event);

@@ -33,6 +33,10 @@ application {
     mainClass = "net.trollyloki.discit.Discit"
 }
 
+tasks.processResources {
+    expand("version" to version)
+}
+
 jib {
     to {
         image = "trollyloki/discit"

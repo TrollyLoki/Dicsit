@@ -14,10 +14,14 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static net.trollyloki.discit.interactions.AboutInteractions.ABOUT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.AddInteractions.ADD_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
@@ -34,6 +38,19 @@ public class Discit {
     private static final Logger LOGGER = LoggerFactory.getLogger(Discit.class);
 
     public static final String RELOAD_SAVE_NAME = "reload_continue";
+
+    public static final @Nullable String VERSION;
+
+    static {
+        Properties properties = new Properties();
+        try (InputStream stream = Discit.class.getClassLoader().getResourceAsStream("project.properties")) {
+            if (stream != null) properties.load(stream);
+            else LOGGER.error("Could not find project.properties resource");
+        } catch (IOException e) {
+            LOGGER.error("Failed to load version from project.properties resource", e);
+        }
+        VERSION = properties.getProperty("version");
+    }
 
     private static final @Nullable String BOT_TOKEN = System.getenv("BOT_TOKEN");
     public static final String DATA_DIRECTORY;
@@ -70,10 +87,15 @@ public class Discit {
             throw new IllegalArgumentException("Bot token must be provided via the BOT_TOKEN environment variable");
         }
 
+        LOGGER.info("Starting Discit{}", VERSION == null ? "" : " v" + VERSION);
+
         this.jda = JDABuilder.createLight(BOT_TOKEN, Collections.emptyList()).build();
         this.jda.addEventListener(new InteractionListener());
 
         this.jda.updateCommands().addCommands(
+                Commands.slash(ABOUT_COMMAND_NAME, "Display information about the app").setContexts(
+                        InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL
+                ).setIntegrationTypes(IntegrationType.GUILD_INSTALL, IntegrationType.USER_INSTALL),
                 Commands.slash(SETTINGS_COMMAND_NAME, "Change settings").setContexts(InteractionContextType.GUILD),
                 Commands.slash(ADD_COMMAND_NAME, "Add a server").setContexts(InteractionContextType.GUILD).addOptions(
                         new OptionData(OptionType.STRING, "host", "Server host address", true),
