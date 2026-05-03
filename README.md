@@ -1,6 +1,21 @@
 # Discit
 Discord application for Satisfactory save files and dedicated server management
 
+## Overview
+Discit is essentially a Discord-based alternative to the in-game server manager with a few additional features.
+It is fully compatible with any (non-experimental) dedicated server regardless of hosting provider or installed mods,
+relying only on the vanilla HTTPS and Lightweight Query APIs.
+
+### Highlights
+- Monitor live server status information from a single Discord channel
+- Receive automated alerts via Discord pings when a server goes down
+- Reload servers to update blueprints without requiring a forced restart
+- Upload save files to multiple servers simultaneously
+- Download saves from multiple servers into one consolidated zip file
+- Check save file info and validity
+- Change server names, options, and passwords
+- and much more
+
 ## Features
 **Note:** When the app is installed to a user, only the Save File Analysis feature is available.
 
