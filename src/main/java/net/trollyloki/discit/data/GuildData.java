@@ -15,6 +15,7 @@ public class GuildData {
     private @Nullable String adminRoleId;
     private @Nullable String dashboardChannelId;
     private @Nullable String logChannelId;
+    private @Nullable String alertRoleId;
     private long offlineAlertDelaySeconds = -1;
 
     public Map<UUID, ServerData> getServers() {
@@ -43,6 +44,14 @@ public class GuildData {
 
     public void setLogChannelId(@Nullable String logChannelId) {
         this.logChannelId = logChannelId;
+    }
+
+    public @Nullable String getAlertRoleId() {
+        return alertRoleId;
+    }
+
+    public void setAlertRoleId(@Nullable String alertRoleId) {
+        this.alertRoleId = alertRoleId;
     }
 
     public long getOfflineAlertDelaySeconds() {

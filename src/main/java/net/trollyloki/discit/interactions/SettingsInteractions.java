@@ -2,6 +2,7 @@ package net.trollyloki.discit.interactions;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.container.Container;
 import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
@@ -12,12 +13,13 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
+import net.dv8tion.jda.api.interactions.Interaction;
 import net.trollyloki.discit.Discit;
 import net.trollyloki.discit.GuildManager;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.function.BiConsumer;
@@ -36,14 +38,13 @@ public final class SettingsInteractions {
             ADMIN_ROLE_SELECT_ID = "admin-role",
             DASHBOARD_CHANNEL_SELECT_ID = "dashboard-channel",
             LOG_CHANNEL_SELECT_ID = "log-channel",
+            ALERT_ROLE_SELECT_ID = "alert-role",
+            UNSET_ALERT_ROLE_BUTTON_ID = "unset-alert-role",
             DEFAULT_OFFLINE_ALERT_DELAY_SELECT_ID = "offline-alert-delay";
 
-    public static void onSettingsCommand(SlashCommandInteractionEvent event) {
-        if (isNotAdmin(event))
-            return;
-
-        GuildManager guildManager = getGuildManager(event);
-        Member member = event.getMember();
+    private static Container settingsContainer(Interaction interaction) {
+        GuildManager guildManager = getGuildManager(interaction);
+        Member member = interaction.getMember();
         boolean canManageGuild = member != null && member.hasPermission(Permission.MANAGE_SERVER);
 
         EntitySelectMenu.Builder adminRoleSelect = EntitySelectMenu.create(ADMIN_ROLE_SELECT_ID, EntitySelectMenu.SelectTarget.ROLE);
@@ -64,13 +65,19 @@ public final class SettingsInteractions {
             logChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentLogChannel));
         }
 
+        EntitySelectMenu.Builder alertRoleSelect = EntitySelectMenu.create(ALERT_ROLE_SELECT_ID, EntitySelectMenu.SelectTarget.ROLE);
+        Role currentAlertRole = guildManager.getAlertRole();
+        if (currentAlertRole != null) {
+            alertRoleSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentAlertRole));
+        }
+
         StringSelectMenu defaultOfflineAlertDelaySelect = createAlertDelaySelectMenu(DEFAULT_OFFLINE_ALERT_DELAY_SELECT_ID, guildManager.getDefaultOfflineAlertDelay());
 
         String title = "## Settings";
-        if (event.getGuild() != null) {
-            title += " for " + event.getGuild().getName();
+        if (interaction.getGuild() != null) {
+            title += " for " + interaction.getGuild().getName();
         }
-        event.replyComponents(Container.of(
+        return Container.of(
                 TextDisplay.of(title),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 TextDisplay.of("### Administrator Role"),
@@ -85,47 +92,83 @@ public final class SettingsInteractions {
                 TextDisplay.of("A message will be sent to this channel each time an action that requires administrator access is performed"),
                 ActionRow.of(logChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.SMALL),
+                TextDisplay.of("### Alert Role"),
+                TextDisplay.of("This role will be mentioned in alerts if set"),
+                ActionRow.of(alertRoleSelect.setPlaceholder("Select a role").build()),
+                ActionRow.of(Button.secondary(UNSET_ALERT_ROLE_BUTTON_ID, "Unset Alert Role").withDisabled(currentAlertRole == null)),
+                Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Default Offline Alert Delay"),
                 TextDisplay.of("Newly added servers will have their offline alert delay set to this value"),
                 TextDisplay.of("This setting can be changed for individual servers later via " + Discit.get().getCommand(LIST_COMMAND_NAME).getAsMention()),
                 ActionRow.of(defaultOfflineAlertDelaySelect)
-        )).useComponentsV2().setEphemeral(true).queue();
+        );
+    }
+
+    public static void onSettingsCommand(SlashCommandInteractionEvent event) {
+        if (isNotAdmin(event))
+            return;
+
+        event.replyComponents(settingsContainer(event)).useComponentsV2().setEphemeral(true).queue();
     }
 
     public static void onAdminRoleSelect(EntitySelectInteractionEvent event) {
-        IMentionable selection = onEntitySelectHelper(event, GuildManager::setAdminRole);
-        if (selection == null)
+        if (cannotManageGuild(event))
             return;
 
-        event.reply("Administrator role set to " + selection.getAsMention()).setEphemeral(true).queue();
+        IMentionable selection = onEntitySelectHelper(event, GuildManager::setAdminRole);
+
+        event.getHook().sendMessage("Administrator role set to " + selection.getAsMention()).setEphemeral(true).queue();
         logAction(event, "set the administrator role to " + selection.getAsMention());
     }
 
     public static void onDashboardChannelSelect(EntitySelectInteractionEvent event) {
-        IMentionable selection = onEntitySelectHelper(event, GuildManager::setDashboardChannel);
-        if (selection == null)
+        if (cannotManageGuild(event))
             return;
 
-        event.reply("Dashboard channel set to " + selection.getAsMention()).setEphemeral(true).queue();
+        IMentionable selection = onEntitySelectHelper(event, GuildManager::setDashboardChannel);
+
+        event.getHook().sendMessage("Dashboard channel set to " + selection.getAsMention()).setEphemeral(true).queue();
         logAction(event, "set the dashboard channel to " + selection.getAsMention());
     }
 
     public static void onLogChannelSelect(EntitySelectInteractionEvent event) {
-        IMentionable selection = onEntitySelectHelper(event, GuildManager::setLogChannel);
-        if (selection == null)
+        if (cannotManageGuild(event))
             return;
 
-        event.reply("Log channel set to " + selection.getAsMention()).setEphemeral(true).queue();
+        IMentionable selection = onEntitySelectHelper(event, GuildManager::setLogChannel);
+
+        event.getHook().sendMessage("Log channel set to " + selection.getAsMention()).setEphemeral(true).queue();
         logAction(event, "set the log channel to " + selection.getAsMention());
     }
 
-    private static @Nullable IMentionable onEntitySelectHelper(EntitySelectInteractionEvent event, BiConsumer<GuildManager, String> setter) {
-        if (cannotManageGuild(event))
-            return null;
+    public static void onAlertRoleSelect(EntitySelectInteractionEvent event) {
+        if (isNotAdmin(event))
+            return;
 
+        IMentionable selection = onEntitySelectHelper(event, GuildManager::setAlertRole);
+
+        event.getHook().sendMessage("Alert role set to " + selection.getAsMention()).setEphemeral(true).queue();
+        logAction(event, "set the alert role to " + selection.getAsMention());
+    }
+
+    public static void onUnsetAlertRoleButton(ButtonInteractionEvent event) {
+        if (isNotAdmin(event))
+            return;
+
+        getGuildManager(event).setAlertRole(null);
+
+        event.editComponents(settingsContainer(event)).useComponentsV2().queue();
+
+        event.getHook().sendMessage("Alert role unset").setEphemeral(true).queue();
+        logAction(event, "unset the alert role");
+    }
+
+    private static IMentionable onEntitySelectHelper(EntitySelectInteractionEvent event, BiConsumer<GuildManager, String> setter) {
         IMentionable selection = event.getValues().getFirst();
 
         setter.accept(getGuildManager(event), selection.getId());
+
+        event.editComponents(settingsContainer(event)).useComponentsV2().queue();
 
         return selection;
     }
@@ -138,12 +181,14 @@ public final class SettingsInteractions {
 
         getGuildManager(event).setDefaultOfflineAlertDelay(duration);
 
+        event.editComponents(settingsContainer(event)).useComponentsV2().queue();
+
         if (duration != null) {
             String formatted = formatDuration(duration.toSeconds());
-            event.reply("Default offline alert delay set to " + formatted).setEphemeral(true).queue();
+            event.getHook().sendMessage("Default offline alert delay set to " + formatted).setEphemeral(true).queue();
             logAction(event, "set the offline alert delay for new servers to " + formatted);
         } else {
-            event.reply("Default offline alerts disabled").setEphemeral(true).queue();
+            event.getHook().sendMessage("Default offline alerts disabled").setEphemeral(true).queue();
             logAction(event, "disabled offline alerts for new servers");
         }
     }

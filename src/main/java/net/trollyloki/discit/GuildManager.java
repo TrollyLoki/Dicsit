@@ -125,6 +125,12 @@ public class GuildManager {
         return getGuild().getChannelById(GuildMessageChannel.class, channelId);
     }
 
+    public @Nullable Role getAlertRole() {
+        String roleId = data.getAlertRoleId();
+        if (roleId == null) return null;
+        return getGuild().getRoleById(roleId);
+    }
+
     public @Nullable Duration getDefaultOfflineAlertDelay() {
         return secondsToDuration(data.getOfflineAlertDelaySeconds());
     }
@@ -141,6 +147,11 @@ public class GuildManager {
 
     public void setLogChannel(@Nullable String channelId) {
         data.setLogChannelId(channelId);
+        save();
+    }
+
+    public void setAlertRole(@Nullable String roleId) {
+        data.setAlertRoleId(roleId);
         save();
     }
 
@@ -165,8 +176,8 @@ public class GuildManager {
         if (channel == null) return;
 
         String text = ALERT_EMOJI.getFormatted() + " " + alert;
-        Role role = getAdminRole();
-        if (role != null) text += " " + getAdminRole().getAsMention();
+        Role role = getAlertRole();
+        if (role != null) text += " " + role.getAsMention();
 
         try {
             channel.sendMessage(text).setAllowedMentions(Collections.singleton(Message.MentionType.ROLE)).queue();

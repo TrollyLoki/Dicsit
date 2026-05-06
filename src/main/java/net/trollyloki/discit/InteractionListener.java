@@ -103,6 +103,7 @@ public class InteractionListener extends ListenerAdapter {
                 case ADMIN_ROLE_SELECT_ID -> onAdminRoleSelect(event);
                 case DASHBOARD_CHANNEL_SELECT_ID -> onDashboardChannelSelect(event);
                 case LOG_CHANNEL_SELECT_ID -> onLogChannelSelect(event);
+                case ALERT_ROLE_SELECT_ID -> onAlertRoleSelect(event);
                 case SERVER_CHANNEL_SELECT_ID -> onServerChannelSelect(event, id[1]);
                 default -> LOGGER.warn("Unknown entity select ID {}", event.getComponentId());
             }
@@ -118,6 +119,7 @@ public class InteractionListener extends ListenerAdapter {
             String[] id = splitId(event.getComponentId());
             switch (id[0]) {
                 case CANCEL_BUTTON_ID -> onCancelButton(event);
+                case UNSET_ALERT_ROLE_BUTTON_ID -> onUnsetAlertRoleButton(event);
                 case ADD_RETRY_BUTTON_ID -> onRetryButton(event, id[1], Integer.parseInt(id[2]));
                 case ADD_CONFIRM_BUTTON_ID -> onAddConfirmButton(event, id[1], Integer.parseInt(id[2]), id[3]);
                 case CLAIM_BUTTON_ID -> onClaimButton(event, id[1]);
