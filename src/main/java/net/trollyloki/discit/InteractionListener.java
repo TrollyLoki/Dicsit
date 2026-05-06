@@ -153,8 +153,9 @@ public class InteractionListener extends ListenerAdapter {
         try {
             String[] id = splitId(event.getComponentId());
             switch (id[0]) {
-                case OFFLINE_ALERT_DELAY_SELECT_ID -> onOfflineAlertDelaySelect(event);
+                case DEFAULT_OFFLINE_ALERT_DELAY_SELECT_ID -> onDefaultOfflineAlertDelaySelect(event);
                 case LIST_SELECT_ID -> onListSelect(event);
+                case OFFLINE_ALERT_DELAY_SELECT_ID -> onOfflineAlertDelaySelect(event, id[1]);
                 case AUTOLOAD_SESSION_NAME_SELECT_ID -> onSetAutoloadSessionNameSelect(event, id[1]);
                 case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionSelect(event, id[1], id[2]);
                 case AGS_VALUE_SELECT_ID -> onAdvancedGameSettingValueSelect(event, id[1], id[2]);

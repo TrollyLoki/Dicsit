@@ -41,6 +41,17 @@ public class GuildManager {
         return new File(Discit.DATA_DIRECTORY, guildId + ".json");
     }
 
+    private static @Nullable Duration secondsToDuration(long seconds) {
+        return seconds < 0 ? null : Duration.ofSeconds(seconds);
+    }
+
+    private static long durationToSeconds(@Nullable Duration delay) {
+        if (delay != null && delay.isNegative()) {
+            throw new IllegalArgumentException("Non-null delay cannot be negative");
+        }
+        return delay == null ? -1 : delay.toSeconds();
+    }
+
     private final JDA jda;
     private final String guildId;
     private final GuildData data;
@@ -56,6 +67,13 @@ public class GuildManager {
     public static GuildManager load(JDA jda, String guildId) {
         File dataFile = dataFile(guildId);
         GuildData data = dataFile.exists() ? DATA_MAPPER.readValue(dataFile, GuildData.class) : new GuildData();
+
+        // Fill in missing offline alert delay values with default as needed
+        for (ServerData serverData : data.getServers().values()) {
+            if (serverData.getOfflineAlertDelaySeconds() == 0) {
+                serverData.setOfflineAlertDelaySeconds(data.getOfflineAlertDelaySeconds());
+            }
+        }
 
         GuildManager guildManager = new GuildManager(jda, guildId, data);
         guildManager.data.getServers().keySet().forEach(guildManager::initServer);
@@ -107,9 +125,8 @@ public class GuildManager {
         return getGuild().getChannelById(GuildMessageChannel.class, channelId);
     }
 
-    public @Nullable Duration getOfflineAlertDelay() {
-        long seconds = data.getOfflineAlertDelaySeconds();
-        return seconds < 0 ? null : Duration.ofSeconds(seconds);
+    public @Nullable Duration getDefaultOfflineAlertDelay() {
+        return secondsToDuration(data.getOfflineAlertDelaySeconds());
     }
 
     public void setAdminRole(@Nullable String roleId) {
@@ -127,11 +144,8 @@ public class GuildManager {
         save();
     }
 
-    public void setOfflineAlertDelay(@Nullable Duration delay) {
-        if (delay != null && delay.isNegative()) {
-            throw new IllegalArgumentException("Non-null delay cannot be negative");
-        }
-        data.setOfflineAlertDelaySeconds(delay == null ? -1 : delay.toSeconds());
+    public void setDefaultOfflineAlertDelay(@Nullable Duration delay) {
+        data.setOfflineAlertDelaySeconds(durationToSeconds(delay));
         save();
     }
 
@@ -179,6 +193,7 @@ public class GuildManager {
         }
 
         ServerData serverData = new ServerData(host, port, fingerprint);
+        serverData.setOfflineAlertDelaySeconds(data.getOfflineAlertDelaySeconds());
 
         UUID serverId;
         do {
@@ -307,6 +322,24 @@ public class GuildManager {
         } else {
             LOGGER.warn("Could not set server channel for unknown server {}", serverId);
             return null;
+        }
+    }
+
+    public @Nullable Duration getOfflineAlertDelay(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            return secondsToDuration(server.getOfflineAlertDelaySeconds());
+        }
+        return null;
+    }
+
+    public void setOfflineAlertDelay(UUID serverId, @Nullable Duration delay) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            server.setOfflineAlertDelaySeconds(durationToSeconds(delay));
+            save();
+        } else {
+            LOGGER.warn("Could not set offline alert delay for unknown server {}", serverId);
         }
     }
 

@@ -22,6 +22,7 @@ import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionE
 import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.discit.GuildManager;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
@@ -29,14 +30,14 @@ import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static net.trollyloki.discit.FormattingUtils.escapedServerName;
-import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.discit.FormattingUtils.*;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
@@ -57,6 +58,7 @@ public final class ListInteractions {
             AUTHENTICATE_MODAL_ID = "authenticate",
             LIST_DEAUTHENTICATE_BUTTON_ID = "list-deauthenticate",
             LIST_REMOVE_BUTTON_ID = "list-remove",
+            OFFLINE_ALERT_DELAY_SELECT_ID = "server-offline-alert-delay",
             SERVER_CHANNEL_SELECT_ID = "server-channel",
             UNSET_SERVER_CHANNEL_BUTTON_ID = "unset-server-channel",
             ALLOW_RELOADING_BUTTON_ID = "allow-reloading";
@@ -69,8 +71,13 @@ public final class ListInteractions {
         }
         buttons.add(Button.danger(buildId(LIST_REMOVE_BUTTON_ID, serverIdString), "Remove"));
 
+        GuildManager guildManager = getGuildManager(interaction);
+        UUID serverId = UUID.fromString(serverIdString);
+
+        StringSelectMenu offlineAlertDelaySelect = createAlertDelaySelectMenu(buildId(OFFLINE_ALERT_DELAY_SELECT_ID, serverIdString), guildManager.getOfflineAlertDelay(serverId));
+
         EntitySelectMenu.Builder serverChannelSelect = messageChannelSelect(buildId(SERVER_CHANNEL_SELECT_ID, serverIdString));
-        GuildMessageChannel currentServerChannel = getGuildManager(interaction).getServerChannel(UUID.fromString(serverIdString));
+        GuildMessageChannel currentServerChannel = guildManager.getServerChannel(serverId);
         if (currentServerChannel != null) {
             serverChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentServerChannel));
         }
@@ -82,6 +89,10 @@ public final class ListInteractions {
                 TextDisplay.of("### Fingerprint\n```" + server.getFingerprint() + "```"),
                 ActionRow.of(buttons),
                 Separator.createDivider(Separator.Spacing.LARGE),
+                TextDisplay.of("### Offline Alert Delay"),
+                TextDisplay.of("If this server goes and stays offline for this amount of time a message mentioning the administrator role will be sent to the log channel"),
+                ActionRow.of(offlineAlertDelaySelect),
+                Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Server Channel"),
                 TextDisplay.of("Slash commands sent in this channel will select this server automatically"),
                 ActionRow.of(serverChannelSelect.setPlaceholder("Select a channel").build()),
@@ -233,6 +244,25 @@ public final class ListInteractions {
 
         event.getHook().sendMessage("Authentication removed").setEphemeral(true).queue();
         logActionWithServer(event, "removed the authentication token for", server.getName());
+    }
+
+    public static void onOfflineAlertDelaySelect(StringSelectInteractionEvent event, String serverIdString) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        Duration duration = parseAlertDelay(event.getValues().getFirst());
+
+        getGuildManager(event).setOfflineAlertDelay(UUID.fromString(serverIdString), duration);
+
+        if (duration != null) {
+            String formatted = formatDuration(duration.toSeconds());
+            event.reply("Offline alert delay set to " + formatted).setEphemeral(true).queue();
+            logActionWithServer(event, "set the offline alert delay to " + formatted + " for", server.getName());
+        } else {
+            event.reply("Offline alerts disabled").setEphemeral(true).queue();
+            logActionWithServer(event, "disabled offline alerts for", server.getName());
+        }
     }
 
     public static void onServerChannelSelect(EntitySelectInteractionEvent event, String serverIdString) {

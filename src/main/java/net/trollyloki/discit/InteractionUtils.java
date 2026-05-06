@@ -60,6 +60,8 @@ public final class InteractionUtils {
             CHECKBOX_CHECKED_EMOJI = Emoji.fromUnicode("✅"),
             CHECKBOX_EMPTY_EMOJI = Emoji.fromUnicode("🔳");
 
+    private static final int[] DELAY_OPTIONS_SECONDS = {-1, 5, 10, 20, 30, 60, 2 * 60, 3 * 60, 4 * 60, 5 * 60, 10 * 60, 20 * 60, 30 * 60, 60 * 60};
+
     public static @Nullable List<Message.Attachment> findMessageAttachments(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = new ArrayList<>(event.getTarget().getAttachments());
         for (MessageSnapshot snapshot : event.getTarget().getMessageSnapshots()) {
@@ -237,6 +239,18 @@ public final class InteractionUtils {
         }
 
         return selectMenu.setDefaultValues(Integer.toString(current)).build();
+    }
+
+    public static StringSelectMenu createAlertDelaySelectMenu(String customId, @Nullable Duration currentDelay) {
+        return createIntSelectMenu(customId, seconds -> {
+            if (seconds < 0) return "Disable alerts";
+            else return formatDuration(seconds);
+        }, currentDelay == null ? -1 : (int) currentDelay.toSeconds(), DELAY_OPTIONS_SECONDS);
+    }
+
+    public static @Nullable Duration parseAlertDelay(String value) {
+        int seconds = Integer.parseInt(value);
+        return seconds < 0 ? null : Duration.ofSeconds(seconds);
     }
 
     public static String generateToken(HttpsApi httpsApi) {

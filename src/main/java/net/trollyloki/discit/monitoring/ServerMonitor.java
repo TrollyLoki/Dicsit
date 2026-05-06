@@ -147,11 +147,11 @@ public class ServerMonitor implements Closeable {
 
             // Reschedule offline alert
             if (offlineAlertFuture != null) offlineAlertFuture.cancel(true);
-            Duration alertDelay = guildManager.getOfflineAlertDelay();
+            Duration alertDelay = guildManager.getOfflineAlertDelay(serverId);
             if (alertDelay != null) {
                 offlineAlertFuture = updateExecutor.schedule(() -> {
 
-                    if (guildManager.getOfflineAlertDelay() == null) {
+                    if (guildManager.getOfflineAlertDelay(serverId) == null) {
                         // Offline alerts were disabled after this was scheduled, do not send the alert
                         return;
                     }

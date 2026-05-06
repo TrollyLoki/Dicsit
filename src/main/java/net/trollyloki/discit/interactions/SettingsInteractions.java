@@ -14,6 +14,7 @@ import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
+import net.trollyloki.discit.Discit;
 import net.trollyloki.discit.GuildManager;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -23,6 +24,7 @@ import java.util.function.BiConsumer;
 
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.interactions.ListInteractions.LIST_COMMAND_NAME;
 
 @NullMarked
 public final class SettingsInteractions {
@@ -34,9 +36,7 @@ public final class SettingsInteractions {
             ADMIN_ROLE_SELECT_ID = "admin-role",
             DASHBOARD_CHANNEL_SELECT_ID = "dashboard-channel",
             LOG_CHANNEL_SELECT_ID = "log-channel",
-            OFFLINE_ALERT_DELAY_SELECT_ID = "offline-alert-delay";
-
-    private static final int[] DELAY_OPTIONS_SECONDS = {-1, 5, 10, 20, 30, 60, 2 * 60, 3 * 60, 4 * 60, 5 * 60, 10 * 60, 20 * 60, 30 * 60, 60 * 60};
+            DEFAULT_OFFLINE_ALERT_DELAY_SELECT_ID = "offline-alert-delay";
 
     public static void onSettingsCommand(SlashCommandInteractionEvent event) {
         if (isNotAdmin(event))
@@ -64,11 +64,7 @@ public final class SettingsInteractions {
             logChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentLogChannel));
         }
 
-        Duration currentOfflineAlertDelay = guildManager.getOfflineAlertDelay();
-        StringSelectMenu offlineAlertDelaySelect = createIntSelectMenu(OFFLINE_ALERT_DELAY_SELECT_ID, seconds -> {
-            if (seconds < 0) return "Disable alerts";
-            else return formatDuration(seconds);
-        }, currentOfflineAlertDelay == null ? -1 : (int) currentOfflineAlertDelay.toSeconds(), DELAY_OPTIONS_SECONDS);
+        StringSelectMenu defaultOfflineAlertDelaySelect = createAlertDelaySelectMenu(DEFAULT_OFFLINE_ALERT_DELAY_SELECT_ID, guildManager.getDefaultOfflineAlertDelay());
 
         String title = "## Settings";
         if (event.getGuild() != null) {
@@ -89,9 +85,10 @@ public final class SettingsInteractions {
                 TextDisplay.of("A message will be sent to this channel each time an action that requires administrator access is performed"),
                 ActionRow.of(logChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.SMALL),
-                TextDisplay.of("### Offline Alert Delay"),
-                TextDisplay.of("If a server goes and stays offline for this amount of time a message mentioning the administrator role will be sent to the log channel"),
-                ActionRow.of(offlineAlertDelaySelect)
+                TextDisplay.of("### Default Offline Alert Delay"),
+                TextDisplay.of("Newly added servers will have their offline alert delay set to this value"),
+                TextDisplay.of("This setting can be changed later for individual servers via " + Discit.get().getCommand(LIST_COMMAND_NAME).getAsMention()),
+                ActionRow.of(defaultOfflineAlertDelaySelect)
         )).useComponentsV2().setEphemeral(true).queue();
     }
 
@@ -133,23 +130,21 @@ public final class SettingsInteractions {
         return selection;
     }
 
-    public static void onOfflineAlertDelaySelect(StringSelectInteractionEvent event) {
+    public static void onDefaultOfflineAlertDelaySelect(StringSelectInteractionEvent event) {
         if (isNotAdmin(event))
             return;
 
-        int seconds = Integer.parseInt(event.getValues().getFirst());
-        Duration duration = seconds < 0 ? null : Duration.ofSeconds(seconds);
+        Duration duration = parseAlertDelay(event.getValues().getFirst());
 
-        GuildManager guildManager = getGuildManager(event);
-        guildManager.setOfflineAlertDelay(duration);
+        getGuildManager(event).setDefaultOfflineAlertDelay(duration);
 
         if (duration != null) {
             String formatted = formatDuration(duration.toSeconds());
-            event.reply("Offline alert delay set to " + formatted).setEphemeral(true).queue();
-            logAction(event, "set the offline alert delay to " + formatted);
+            event.reply("Default offline alert delay for new servers set to " + formatted).setEphemeral(true).queue();
+            logAction(event, "set the default offline alert delay for new servers to " + formatted);
         } else {
-            event.reply("Offline alerts disabled").setEphemeral(true).queue();
-            logAction(event, "disabled offline alerts");
+            event.reply("Offline alerts for new servers disabled").setEphemeral(true).queue();
+            logAction(event, "disabled offline alerts for new servers");
         }
     }
 

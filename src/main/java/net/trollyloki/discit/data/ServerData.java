@@ -30,6 +30,8 @@ public class ServerData implements Server {
     private @Nullable String dashboardMessageId;
     private @Nullable String serverChannelId;
 
+    private long offlineAlertDelaySeconds; // always set when adding a new server, so value of zero implies missing
+
     @JsonCreator
     public ServerData(
             @JsonProperty("host") String host,
@@ -105,6 +107,14 @@ public class ServerData implements Server {
 
     public void setServerChannelId(@Nullable String serverChannelId) {
         this.serverChannelId = serverChannelId;
+    }
+
+    public long getOfflineAlertDelaySeconds() {
+        return offlineAlertDelaySeconds;
+    }
+
+    public void setOfflineAlertDelaySeconds(long offlineAlertDelaySeconds) {
+        this.offlineAlertDelaySeconds = offlineAlertDelaySeconds;
     }
 
     @Override
