@@ -47,6 +47,8 @@ public final class FormattingUtils {
     }
 
     public static String formatDuration(long totalSeconds) {
+        if (totalSeconds == 0) return "0 seconds";
+
         long hours = totalSeconds / 60 / 60;
         long minutes = totalSeconds / 60 % 60;
         long seconds = totalSeconds % 60;
