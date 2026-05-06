@@ -14,10 +14,12 @@ import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.AdvancedGameSettings;
 import net.trollyloki.jicsit.server.https.NewGameData;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -70,6 +72,18 @@ public final class NewSessionInteractions {
                         .addOption("Tier 8", "8")
                         .addOption("Tier 9", "9")
                         .addOption("Unlock All Tiers", "10")
+                        .build()),
+                Label.of("Set Game Phase", "Selecting a phase will enable Advanced Game Settings", StringSelectMenu.create("phase")
+                        .setPlaceholder("Select phase")
+                        .setRequired(false)
+                        .addOption("Onboarding", "0", "Unlocks Tiers 1 & 2")
+                        .addOption("Distribution Platform (Phase 1)", "1", "Unlocks Tiers 3 & 4")
+                        .addOption("Construction Dock (Phase 2)", "2", "Unlocks Tiers 5 & 6")
+                        .addOption("Main Body (Phase 3)", "3", "Unlocks Tiers 7 & 8")
+                        .addOption("Propulsion Systems (Phase 4)", "4", "Unlocks Tier 9")
+                        .addOption("Assembly (Phase 5)", "5")
+                        .addOption("Launch", "6")
+                        .addOption("Completed", "7")
                         .build())
         ).build()).queue();
     }
@@ -92,13 +106,12 @@ public final class NewSessionInteractions {
         }
 
         ModalMapping tier = event.getValue("tier");
-        List<String> tierAsList = tier != null ? tier.getAsStringList() : Collections.emptyList();
+        ModalMapping phase = event.getValue("phase");
 
         NewGameData.Builder builder = NewGameData.builder(name.getAsString());
         builder.startingLocation(location.getAsStringList().getFirst());
-        if (!tierAsList.isEmpty()) {
-            builder.advancedGameSettings(Map.of(AdvancedGameSettings.STARTING_TIER, tierAsList.getFirst()));
-        }
+        Map<String, String> settings = buildSettings(tier, phase);
+        if (settings != null) builder.advancedGameSettings(settings);
         NewGameData newGameData = builder.build();
 
         event.deferReply(isDashboard(event)).queue();
@@ -108,12 +121,36 @@ public final class NewSessionInteractions {
         requestAsyncWithMDC(server, "create new session on", httpsApi -> {
             httpsApi.createNewSession(newGameData);
         }).thenApplyAsync(withMDC(_ -> {
-            String inlineSessionName = "*" + escapeAll(newGameData.sessionName()) + "*";
-            logActionWithServer(event, "created new session " + inlineSessionName + " on", server.getName());
+            logActionWithServer(event, "created new session " + escapeAll(newGameData.sessionName()) + " on", server.getName());
             return "Successfully created new session on " + inlineServerDisplayName(server.getName());
         })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
             event.getHook().editOriginal(message).queue();
         }));
+    }
+
+    private static @Nullable Map<String, String> buildSettings(@Nullable ModalMapping tier, @Nullable ModalMapping phase) {
+        List<String> tierAsList = tier != null ? tier.getAsStringList() : Collections.emptyList();
+        List<String> phaseAsList = phase != null ? phase.getAsStringList() : Collections.emptyList();
+
+        Map<String, String> settings = null;
+        if (!tierAsList.isEmpty() || !phaseAsList.isEmpty()) {
+            settings = new HashMap<>();
+            settings.put(AdvancedGameSettings.STARTING_TIER, tierAsList.isEmpty() ? "0" : tierAsList.getFirst());
+            settings.put(AdvancedGameSettings.SET_GAME_PHASE, phaseAsList.isEmpty() ? "0" : phaseAsList.getFirst());
+
+            // Workaround apparent bug where previous settings don't get replaced by explicitly setting values to false
+            settings.put(AdvancedGameSettings.NO_POWER, "False");
+            settings.put(AdvancedGameSettings.NO_FUEL, "False");
+            settings.put(AdvancedGameSettings.NO_UNLOCK_COST, "False");
+            settings.put(AdvancedGameSettings.UNLOCK_ALTERNATE_RECIPES_INSTANTLY, "False");
+            settings.put(AdvancedGameSettings.NO_BUILD_COST, "False");
+            settings.put(AdvancedGameSettings.GOD_MODE, "False");
+            settings.put(AdvancedGameSettings.FLIGHT_MODE, "False");
+            settings.put(AdvancedGameSettings.UNLOCK_ALL_RESEARCH, "False");
+            settings.put(AdvancedGameSettings.UNLOCK_ALL_IN_AWESOME_SHOP, "False");
+            settings.put(AdvancedGameSettings.DISABLE_ARACHNID_CREATURES, "False");
+        }
+        return settings;
     }
 
 }
