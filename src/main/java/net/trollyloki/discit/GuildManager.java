@@ -66,14 +66,25 @@ public class GuildManager {
 
     public static GuildManager load(JDA jda, String guildId) {
         File dataFile = dataFile(guildId);
-        GuildData data = dataFile.exists() ? DATA_MAPPER.readValue(dataFile, GuildData.class) : new GuildData();
+        GuildData data;
+        if (!dataFile.exists()) {
+            data = new GuildData();
+        } else {
+            data = DATA_MAPPER.readValue(dataFile, GuildData.class);
 
-        // Fill in missing offline alert delay values with default as needed
-        for (ServerData serverData : data.getServers().values()) {
-            if (serverData.getOfflineAlertDelaySeconds() == 0) {
-                serverData.setOfflineAlertDelaySeconds(data.getOfflineAlertDelaySeconds());
+            // Data migration
+            if (data.getDataVersion() == 0) { // before per-server offline alert delays and separate alert role were added
+                LOGGER.info("Migrating data for guild {}", guildId);
+                for (ServerData serverData : data.getServers().values()) {
+                    // Copy global offline alert delay to all existing servers
+                    serverData.setOfflineAlertDelaySeconds(data.getOfflineAlertDelaySeconds());
+                }
+                // Copy admin role to alert role
+                data.setAlertRoleId(data.getAdminRoleId());
             }
+
         }
+        data.setDataVersion(1);
 
         GuildManager guildManager = new GuildManager(jda, guildId, data);
         guildManager.data.getServers().keySet().forEach(guildManager::initServer);

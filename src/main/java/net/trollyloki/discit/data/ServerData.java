@@ -30,7 +30,7 @@ public class ServerData implements Server {
     private @Nullable String dashboardMessageId;
     private @Nullable String serverChannelId;
 
-    private long offlineAlertDelaySeconds; // always set when adding a new server, so value of zero implies missing
+    private long offlineAlertDelaySeconds = -1;
 
     @JsonCreator
     public ServerData(
