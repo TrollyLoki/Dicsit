@@ -87,7 +87,7 @@ public final class SettingsInteractions {
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Default Offline Alert Delay"),
                 TextDisplay.of("Newly added servers will have their offline alert delay set to this value"),
-                TextDisplay.of("This setting can be changed later for individual servers via " + Discit.get().getCommand(LIST_COMMAND_NAME).getAsMention()),
+                TextDisplay.of("This setting can be changed for individual servers later via " + Discit.get().getCommand(LIST_COMMAND_NAME).getAsMention()),
                 ActionRow.of(defaultOfflineAlertDelaySelect)
         )).useComponentsV2().setEphemeral(true).queue();
     }
@@ -140,10 +140,10 @@ public final class SettingsInteractions {
 
         if (duration != null) {
             String formatted = formatDuration(duration.toSeconds());
-            event.reply("Default offline alert delay for new servers set to " + formatted).setEphemeral(true).queue();
-            logAction(event, "set the default offline alert delay for new servers to " + formatted);
+            event.reply("Default offline alert delay set to " + formatted).setEphemeral(true).queue();
+            logAction(event, "set the offline alert delay for new servers to " + formatted);
         } else {
-            event.reply("Offline alerts for new servers disabled").setEphemeral(true).queue();
+            event.reply("Default offline alerts disabled").setEphemeral(true).queue();
             logAction(event, "disabled offline alerts for new servers");
         }
     }

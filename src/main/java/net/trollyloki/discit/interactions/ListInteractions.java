@@ -90,7 +90,7 @@ public final class ListInteractions {
                 ActionRow.of(buttons),
                 Separator.createDivider(Separator.Spacing.LARGE),
                 TextDisplay.of("### Offline Alert Delay"),
-                TextDisplay.of("If this server goes and stays offline for this amount of time a message mentioning the administrator role will be sent to the log channel"),
+                TextDisplay.of("If this server goes and stays offline for this amount of time the administrator role will be mentioned in the log channel"),
                 ActionRow.of(offlineAlertDelaySelect),
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Server Channel"),
@@ -258,7 +258,7 @@ public final class ListInteractions {
         if (duration != null) {
             String formatted = formatDuration(duration.toSeconds());
             event.reply("Offline alert delay set to " + formatted).setEphemeral(true).queue();
-            logActionWithServer(event, "set the offline alert delay to " + formatted + " for", server.getName());
+            logAction(event, "set the offline alert delay for " + inlineServerDisplayName(server.getName()) + " to " + formatted);
         } else {
             event.reply("Offline alerts disabled").setEphemeral(true).queue();
             logActionWithServer(event, "disabled offline alerts for", server.getName());
