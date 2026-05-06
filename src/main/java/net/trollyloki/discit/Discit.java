@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
+import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
@@ -20,6 +21,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static net.trollyloki.discit.interactions.AboutInteractions.ABOUT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.AddInteractions.ADD_COMMAND_NAME;
@@ -79,8 +81,10 @@ public class Discit {
         DEAD_POLL_INTERVAL_MILLIS = deadPollInterval == null ? 10_000 : Long.parseLong(deadPollInterval);
     }
 
-    private final JDA jda;
     private final Map<String, GuildManager> guildManagers = new ConcurrentHashMap<>();
+
+    private final JDA jda;
+    private final Map<String, Command> commands;
 
     public Discit() throws InterruptedException {
         if (BOT_TOKEN == null) {
@@ -89,10 +93,10 @@ public class Discit {
 
         LOGGER.info("Starting Discit{}", VERSION == null ? "" : " v" + VERSION);
 
-        this.jda = JDABuilder.createLight(BOT_TOKEN, Collections.emptyList()).build();
-        this.jda.addEventListener(new InteractionListener());
+        jda = JDABuilder.createLight(BOT_TOKEN, Collections.emptyList()).build();
+        jda.addEventListener(new InteractionListener());
 
-        this.jda.updateCommands().addCommands(
+        commands = jda.updateCommands().addCommands(
                 Commands.slash(ABOUT_COMMAND_NAME, "Display information about the app").setContexts(
                         InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL
                 ).setIntegrationTypes(IntegrationType.GUILD_INSTALL, IntegrationType.USER_INSTALL),
@@ -102,7 +106,7 @@ public class Discit {
                         new OptionData(OptionType.INTEGER, "port", "Server port", true)
                                 .setRequiredRange(0, 65535)
                 ),
-                Commands.slash(LIST_COMMAND_NAME, "List added servers").setContexts(InteractionContextType.GUILD),
+                Commands.slash(LIST_COMMAND_NAME, "List added servers and their settings").setContexts(InteractionContextType.GUILD),
                 Commands.slash(RELOAD_COMMAND_NAME, "Save and reload the active session on one or more servers").setContexts(InteractionContextType.GUILD),
                 Commands.slash(SAVE_COMMAND_NAME, "Create and download a save from a server").setContexts(InteractionContextType.GUILD),
                 Commands.slash(UPLOAD_COMMAND_NAME, "Upload a save file to one or more servers").setContexts(InteractionContextType.GUILD),
@@ -111,7 +115,7 @@ public class Discit {
                 Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME).setContexts(
                         InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL
                 ).setIntegrationTypes(IntegrationType.GUILD_INSTALL, IntegrationType.USER_INSTALL)
-        ).queue();
+        ).complete().stream().collect(Collectors.toUnmodifiableMap(Command::getName, it -> it));
 
         this.jda.awaitReady();
 
@@ -133,6 +137,14 @@ public class Discit {
 
     public synchronized GuildManager getGuildManager(String guildId) {
         return guildManagers.computeIfAbsent(guildId, k -> GuildManager.load(jda, k));
+    }
+
+    public Command getCommand(String name) {
+        Command command = commands.get(name);
+        if (command == null) {
+            throw new IllegalArgumentException("Unknown command: " + name);
+        }
+        return command;
     }
 
     private static @Nullable Discit INSTANCE;
