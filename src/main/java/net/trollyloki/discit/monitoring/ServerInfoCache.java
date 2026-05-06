@@ -31,6 +31,7 @@ import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteraction
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ListInteractions.AUTHENTICATE_BUTTON_ID;
+import static net.trollyloki.discit.interactions.NewSessionInteractions.NEW_SESSION_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ReloadInteractions.RELOAD_BUTTON_ID;
 import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_BUTTON_ID;
 import static net.trollyloki.discit.interactions.SaveInteractions.SAVE_BUTTON_ID;
@@ -133,38 +134,42 @@ public class ServerInfoCache {
         components.add(TextDisplay.of(subtext));
 
         if (status.isHttpsApiAvailable()) {
-            List<ActionRowChildComponent> firstRow = new ArrayList<>(4);
-            List<ActionRowChildComponent> secondRow = new ArrayList<>(3);
-            List<ActionRowChildComponent> thirdRow = new ArrayList<>(3);
+            List<ActionRowChildComponent> primaryRow = new ArrayList<>(4);
+            List<ActionRowChildComponent> gameRow = new ArrayList<>(2);
+            List<ActionRowChildComponent> optionsRow = new ArrayList<>(2);
+            List<ActionRowChildComponent> passwordsRow = new ArrayList<>(3);
 
             boolean playing = status == ServerStatus.PLAYING;
             if (playing) {
-                firstRow.add(Button.success(buildId(DASHBOARD_REFRESH_BUTTON_ID, serverId), "Refresh"));
+                primaryRow.add(Button.success(buildId(DASHBOARD_REFRESH_BUTTON_ID, serverId), "Refresh"));
             }
 
             if (!authenticated) {
-                firstRow.add(Button.primary(buildId(AUTHENTICATE_BUTTON_ID, serverId), "Authenticate"));
+                primaryRow.add(Button.primary(buildId(AUTHENTICATE_BUTTON_ID, serverId), "Authenticate"));
             } else {
                 if (playing) {
-                    firstRow.add(Button.primary(buildId(RELOAD_BUTTON_ID, serverId), "Reload Session"));
-                    firstRow.add(Button.secondary(buildId(SAVE_BUTTON_ID, serverId), "Download Save").withEmoji(Emoji.fromUnicode("💾")));
+                    primaryRow.add(Button.primary(buildId(RELOAD_BUTTON_ID, serverId), "Reload Session"));
+                    primaryRow.add(Button.secondary(buildId(SAVE_BUTTON_ID, serverId), "Download Save").withEmoji(Emoji.fromUnicode("💾")));
                 }
-                firstRow.add(Button.secondary(buildId(UPLOAD_BUTTON_ID, serverId), "Upload Save").withEmoji(Emoji.fromUnicode("📡")));
+                primaryRow.add(Button.secondary(buildId(UPLOAD_BUTTON_ID, serverId), "Upload Save").withEmoji(Emoji.fromUnicode("📡")));
 
-                secondRow.add(Button.secondary(buildId(RENAME_BUTTON_ID, serverId), "Rename Server").withEmoji(Emoji.fromUnicode("🪧")));
-                secondRow.add(Button.secondary(buildId(SERVER_OPTIONS_BUTTON_ID, serverId), "Server Options").withEmoji(Emoji.fromUnicode("⚙️")));
+                gameRow.add(Button.secondary(buildId(NEW_SESSION_BUTTON_ID, serverId), "New Session").withEmoji(Emoji.fromUnicode("🚀")));
                 if (playing) {
-                    secondRow.add(Button.secondary(buildId(AGS_BUTTON_ID, serverId), "Advanced Game Settings").withEmoji(Emoji.fromUnicode("✏️")));
+                    gameRow.add(Button.secondary(buildId(AGS_BUTTON_ID, serverId), "Advanced Game Settings").withEmoji(Emoji.fromUnicode("✏️")));
                 }
 
-                thirdRow.add(changePasswordButton(ChangePasswordInteractions.PasswordType.CLIENT).withEmoji(Emoji.fromUnicode("🔓")));
-                thirdRow.add(changePasswordButton(ChangePasswordInteractions.PasswordType.ADMIN).withEmoji(Emoji.fromUnicode("🔐")));
-                thirdRow.add(Button.danger(buildId(INVALIDATE_TOKENS_BUTTON_ID, serverId), "Invalidate Tokens"));
+                optionsRow.add(Button.secondary(buildId(RENAME_BUTTON_ID, serverId), "Rename Server").withEmoji(Emoji.fromUnicode("🪧")));
+                optionsRow.add(Button.secondary(buildId(SERVER_OPTIONS_BUTTON_ID, serverId), "Server Options").withEmoji(Emoji.fromUnicode("⚙️")));
+
+                passwordsRow.add(changePasswordButton(ChangePasswordInteractions.PasswordType.CLIENT).withEmoji(Emoji.fromUnicode("🔓")));
+                passwordsRow.add(changePasswordButton(ChangePasswordInteractions.PasswordType.ADMIN).withEmoji(Emoji.fromUnicode("🔐")));
+                passwordsRow.add(Button.danger(buildId(INVALIDATE_TOKENS_BUTTON_ID, serverId), "Invalidate Tokens"));
             }
 
-            components.add(ActionRow.of(firstRow));
-            if (!secondRow.isEmpty()) components.add(ActionRow.of(secondRow));
-            if (!thirdRow.isEmpty()) components.add(ActionRow.of(thirdRow));
+            components.add(ActionRow.of(primaryRow));
+            if (!gameRow.isEmpty()) components.add(ActionRow.of(gameRow));
+            if (!optionsRow.isEmpty()) components.add(ActionRow.of(optionsRow));
+            if (!passwordsRow.isEmpty()) components.add(ActionRow.of(passwordsRow));
         }
 
         return Container.of(components).withAccentColor(switch (status) {
