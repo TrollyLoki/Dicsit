@@ -291,6 +291,24 @@ public class GuildManager {
         }
     }
 
+    public @Nullable Duration getOfflineAlertDelay(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            return secondsToDuration(server.getOfflineAlertDelaySeconds());
+        }
+        return null;
+    }
+
+    public void setOfflineAlertDelay(UUID serverId, @Nullable Duration delay) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            server.setOfflineAlertDelaySeconds(durationToSeconds(delay));
+            save();
+        } else {
+            LOGGER.warn("Could not set offline alert delay for unknown server {}", serverId);
+        }
+    }
+
     public @Nullable String getDashboardMessageId(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
         if (server != null) {
@@ -344,24 +362,6 @@ public class GuildManager {
         } else {
             LOGGER.warn("Could not set server channel for unknown server {}", serverId);
             return null;
-        }
-    }
-
-    public @Nullable Duration getOfflineAlertDelay(UUID serverId) {
-        ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            return secondsToDuration(server.getOfflineAlertDelaySeconds());
-        }
-        return null;
-    }
-
-    public void setOfflineAlertDelay(UUID serverId, @Nullable Duration delay) {
-        ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            server.setOfflineAlertDelaySeconds(durationToSeconds(delay));
-            save();
-        } else {
-            LOGGER.warn("Could not set offline alert delay for unknown server {}", serverId);
         }
     }
 

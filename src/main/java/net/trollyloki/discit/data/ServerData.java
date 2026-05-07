@@ -25,12 +25,11 @@ public class ServerData implements Server {
 
     private @Nullable String name;
     private @Nullable String token;
+    private long offlineAlertDelaySeconds = -1;
     private boolean allowReloading = false;
 
     private @Nullable String dashboardMessageId;
     private @Nullable String serverChannelId;
-
-    private long offlineAlertDelaySeconds = -1;
 
     @JsonCreator
     public ServerData(
@@ -84,6 +83,14 @@ public class ServerData implements Server {
         this.token = token;
     }
 
+    public long getOfflineAlertDelaySeconds() {
+        return offlineAlertDelaySeconds;
+    }
+
+    public void setOfflineAlertDelaySeconds(long offlineAlertDelaySeconds) {
+        this.offlineAlertDelaySeconds = offlineAlertDelaySeconds;
+    }
+
     @Override
     public boolean isAllowReloading() {
         return allowReloading;
@@ -107,14 +114,6 @@ public class ServerData implements Server {
 
     public void setServerChannelId(@Nullable String serverChannelId) {
         this.serverChannelId = serverChannelId;
-    }
-
-    public long getOfflineAlertDelaySeconds() {
-        return offlineAlertDelaySeconds;
-    }
-
-    public void setOfflineAlertDelaySeconds(long offlineAlertDelaySeconds) {
-        this.offlineAlertDelaySeconds = offlineAlertDelaySeconds;
     }
 
     @Override
