@@ -90,7 +90,7 @@ public final class ListInteractions {
                 ActionRow.of(buttons),
                 Separator.createDivider(Separator.Spacing.LARGE),
                 TextDisplay.of("### Offline Alert Delay"),
-                TextDisplay.of("If this server goes and stays offline for this amount of time the administrator role will be mentioned in the log channel"),
+                TextDisplay.of("If this server goes and stays offline for this amount of time, an alert will be sent to the log channel"),
                 ActionRow.of(offlineAlertDelaySelect),
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Server Channel"),

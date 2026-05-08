@@ -93,7 +93,7 @@ public final class SettingsInteractions {
                 ActionRow.of(logChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Alert Role"),
-                TextDisplay.of("This role will be mentioned in alerts if set"),
+                TextDisplay.of("This role will be mentioned in alerts"),
                 ActionRow.of(alertRoleSelect.setPlaceholder("Select a role").build()),
                 ActionRow.of(Button.secondary(UNSET_ALERT_ROLE_BUTTON_ID, "Unset Alert Role").withDisabled(currentAlertRole == null)),
                 Separator.createInvisible(Separator.Spacing.SMALL),
