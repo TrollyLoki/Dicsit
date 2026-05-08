@@ -22,6 +22,7 @@ import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionE
 import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.discit.Discit;
 import net.trollyloki.discit.GuildManager;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
@@ -42,6 +43,7 @@ import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.withMDC;
+import static net.trollyloki.discit.interactions.SettingsInteractions.SETTINGS_COMMAND_NAME;
 
 @NullMarked
 public final class ListInteractions {
@@ -82,6 +84,8 @@ public final class ListInteractions {
             serverChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentServerChannel));
         }
 
+        IMentionable logChannel = guildManager.getLogChannel();
+        String logChannelString = logChannel == null ? "unset" : logChannel.getAsMention();
         return Container.of(
                 TextDisplay.of("## " + escapedServerName(server.getName())),
                 TextDisplay.of("### Host\n||```" + server.getHost() + "```||"),
@@ -90,7 +94,7 @@ public final class ListInteractions {
                 ActionRow.of(buttons),
                 Separator.createDivider(Separator.Spacing.LARGE),
                 TextDisplay.of("### Offline Alert Delay"),
-                TextDisplay.of("If this server goes and stays offline for this amount of time, an alert will be sent to the log channel"),
+                TextDisplay.of("If this server goes and stays offline for this amount of time, an alert will be sent to the log channel set in " + Discit.get().getCommand(SETTINGS_COMMAND_NAME).getAsMention() + " (currently " + logChannelString + ")"),
                 ActionRow.of(offlineAlertDelaySelect),
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Server Channel"),
