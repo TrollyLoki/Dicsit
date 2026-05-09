@@ -1,6 +1,7 @@
 package net.trollyloki.discit.interactions;
 
 import net.dv8tion.jda.api.components.label.Label;
+import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
@@ -33,8 +34,14 @@ public final class RenameInteractions {
         if (server == null)
             return;
 
+        TextInput.Builder inputBuilder = serverNameInput("name");
+        String currentName = server.getName();
+        if (currentName != null && !currentName.isEmpty()) {
+            inputBuilder.setValue(currentName);
+        }
+
         event.replyModal(Modal.create(buildId(RENAME_MODAL_ID, serverIdString), "Rename Server").addComponents(
-                Label.of("Server Name", serverNameInput("name").setValue(server.getName()).build())
+                Label.of("Server Name", inputBuilder.build())
         ).build()).queue();
     }
 
