@@ -66,6 +66,7 @@ public class GuildManager {
 
     public static GuildManager load(JDA jda, String guildId) {
         File dataFile = dataFile(guildId);
+
         GuildData data;
         if (!dataFile.exists()) {
             data = new GuildData();
@@ -113,33 +114,35 @@ public class GuildManager {
         return guild;
     }
 
+    private @Nullable Role getRole(@Nullable String roleId) {
+        if (roleId == null) return null;
+        return getGuild().getRoleById(roleId);
+    }
+
+    private @Nullable GuildMessageChannel getMessageChannel(@Nullable String channelId) {
+        if (channelId == null) return null;
+        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
+    }
+
     public boolean hasAdminRole(Member member) {
         Role adminRole = getAdminRole();
         return adminRole != null && member.getUnsortedRoles().contains(adminRole);
     }
 
     public @Nullable Role getAdminRole() {
-        String roleId = data.getAdminRoleId();
-        if (roleId == null) return null;
-        return getGuild().getRoleById(roleId);
+        return getRole(data.getAdminRoleId());
     }
 
     public @Nullable GuildMessageChannel getDashboardChannel() {
-        String channelId = data.getDashboardChannelId();
-        if (channelId == null) return null;
-        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
+        return getMessageChannel(data.getDashboardChannelId());
     }
 
     public @Nullable GuildMessageChannel getLogChannel() {
-        String channelId = data.getLogChannelId();
-        if (channelId == null) return null;
-        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
+        return getMessageChannel(data.getLogChannelId());
     }
 
     public @Nullable Role getAlertRole() {
-        String roleId = data.getAlertRoleId();
-        if (roleId == null) return null;
-        return getGuild().getRoleById(roleId);
+        return getRole(data.getAlertRoleId());
     }
 
     public @Nullable Duration getDefaultOfflineAlertDelay() {
@@ -171,15 +174,19 @@ public class GuildManager {
         save();
     }
 
-    public void logAction(User user, String action) {
+    public void log(String text) {
         GuildMessageChannel channel = getLogChannel();
         if (channel == null) return;
 
         try {
-            channel.sendMessage(user.getAsMention() + " " + action).queue();
+            channel.sendMessage(text).queue();
         } catch (Exception e) {
-            LOGGER.warn("Cannot send action log message", e);
+            LOGGER.warn("Cannot send log message", e);
         }
+    }
+
+    public void logAction(User user, String action) {
+        log(user.getAsMention() + " " + action);
     }
 
     public void logAlert(String alert) {
@@ -245,84 +252,85 @@ public class GuildManager {
 
     public void refreshServer(UUID serverId) {
         ServerMonitor monitor = monitors.get(serverId);
-        if (monitor != null) {
-            monitor.refresh();
-        } else {
+        if (monitor == null) {
             LOGGER.warn("Could not find monitor for server {}", serverId);
+            return;
         }
+
+        monitor.refresh();
     }
 
     public void updateServerName(UUID serverId, @Nullable String name) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            server.setName(name);
-            save();
-        } else {
+        if (server == null) {
             LOGGER.warn("Could not update name for unknown server {}", serverId);
+            return;
         }
+
+        server.setName(name);
+        save();
     }
 
     public boolean setServerToken(UUID serverId, @Nullable String token) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            server.setToken(token);
-            save();
-
-            ServerMonitor monitor = monitors.get(serverId);
-            if (monitor != null) monitor.getInfoCache().setAuthenticated(server.hasToken());
-
-            return true;
-        } else {
+        if (server == null) {
             LOGGER.warn("Could not set token for unknown server {}", serverId);
             return false;
         }
+
+        server.setToken(token);
+        save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setAuthenticated(server.hasToken());
+
+        return true;
     }
 
     public boolean setAllowReloading(UUID serverId, boolean allowReloading) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            server.setAllowReloading(allowReloading);
-            save();
-
-            return true;
-        } else {
+        if (server == null) {
             LOGGER.warn("Could not set allow reloading value for unknown server {}", serverId);
             return false;
         }
+
+        server.setAllowReloading(allowReloading);
+        save();
+
+        return true;
     }
 
     public @Nullable Duration getOfflineAlertDelay(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            return secondsToDuration(server.getOfflineAlertDelaySeconds());
-        }
-        return null;
+        if (server == null) return null;
+
+        return secondsToDuration(server.getOfflineAlertDelaySeconds());
     }
 
     public void setOfflineAlertDelay(UUID serverId, @Nullable Duration delay) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            server.setOfflineAlertDelaySeconds(durationToSeconds(delay));
-            save();
-        } else {
+        if (server == null) {
             LOGGER.warn("Could not set offline alert delay for unknown server {}", serverId);
+            return;
         }
+
+        server.setOfflineAlertDelaySeconds(durationToSeconds(delay));
+        save();
     }
 
     public @Nullable String getDashboardMessageId(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            return server.getDashboardMessageId();
-        }
-        return null;
+        if (server == null) return null;
+
+        return server.getDashboardMessageId();
     }
 
     public void updateDashboardMessageId(UUID serverId, @Nullable String messageId) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            server.setDashboardMessageId(messageId);
-            save();
-        }
+        if (server == null) return;
+
+        server.setDashboardMessageId(messageId);
+        save();
     }
 
     public Map.@Nullable Entry<UUID, Server> getChannelServer(@Nullable String channelId) {
@@ -337,32 +345,31 @@ public class GuildManager {
 
     public @Nullable GuildMessageChannel getServerChannel(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-            String channelId = server.getServerChannelId();
-            if (channelId == null) return null;
-            return getGuild().getChannelById(GuildMessageChannel.class, channelId);
-        }
-        return null;
+        if (server == null) return null;
+
+        String channelId = server.getServerChannelId();
+        if (channelId == null) return null;
+
+        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
     }
 
     public synchronized @Nullable Server setServerChannel(UUID serverId, @Nullable String channelId) {
         ServerData server = data.getServers().get(serverId);
-        if (server != null) {
-
-            Map.Entry<UUID, Server> channelServer = getChannelServer(channelId);
-            if (channelServer != null) {
-                // Channel is already associated with a server
-                return channelServer.getValue();
-            }
-
-            server.setServerChannelId(channelId);
-            save();
-
-            return channelId == null ? null : server;
-        } else {
+        if (server == null) {
             LOGGER.warn("Could not set server channel for unknown server {}", serverId);
             return null;
         }
+
+        Map.Entry<UUID, Server> channelServer = getChannelServer(channelId);
+        if (channelServer != null) {
+            // Channel is already associated with a server
+            return channelServer.getValue();
+        }
+
+        server.setServerChannelId(channelId);
+        save();
+
+        return channelId == null ? null : server;
     }
 
 }
