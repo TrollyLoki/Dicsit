@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.components.selections.SelectMenu;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -31,6 +32,7 @@ import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -50,6 +52,8 @@ public final class BackupInteractions {
     public static final String
             BACKUP_COMMAND_NAME = "backup",
             BACKUP_MODAL_ID = "backup";
+
+    private static final Emoji ERROR_EMOJI = Emoji.fromUnicode("❌");
 
     public static void onBackupCommand(SlashCommandInteractionEvent event) {
         Map<UUID, Server> servers = getAllServersIfAdmin(event, true);
@@ -97,10 +101,20 @@ public final class BackupInteractions {
                 .queue();
 
         MessageLinesUpdater messageLinesUpdater = new MessageLinesUpdater(event.getHook(), messageLines);
+        Consumer<String> addError = errorMessage -> {
+            messageLines.add("\n" + ERROR_EMOJI.getFormatted() + " " + errorMessage);
+            synchronized (messageLines) {
+                event.getHook().editOriginal(String.join("\n", messageLines)).queue();
+            }
+        };
 
         LOGGER.info("Backing up {} servers", servers.size());
 
         CompletableFuture.runAsync(withMDC(() -> {
+
+            // JDA seems to deadlock if the file upload request is submitted before any data is available
+            CompletableFuture<@Nullable Message> uploadFuture = null;
+
             PipedInputStream uploadStream = new PipedInputStream();
             try (ZipOutputStream zipStream = new ZipOutputStream(new PipedOutputStream(uploadStream))) {
 
@@ -143,9 +157,6 @@ public final class BackupInteractions {
                     futures.add(saveFuture);
                 }
 
-                // JDA seems to deadlock if the file upload request is submitted before any data is available
-                CompletableFuture<@Nullable Message> uploadFuture = null;
-
                 // Zip save files
                 int saveCount = 0;
                 for (int i = 0; i < futures.size(); i++) {
@@ -185,7 +196,7 @@ public final class BackupInteractions {
                 }
 
                 // Wait for final message update to complete before closing upload stream
-                messageLinesUpdater.stop();
+                messageLinesUpdater.stop(false);
 
                 // Handle final upload completion
                 if (uploadFuture != null) {
@@ -193,13 +204,17 @@ public final class BackupInteractions {
                     uploadFuture.whenCompleteAsync(withMDC((message, throwable) -> {
 
                         if (throwable != null) {
+                            LOGGER.error("Failed to upload zip file attachment", throwable);
+
+                            String errorMessage;
                             if (throwable.getCause() instanceof ErrorResponseException error
                                     && error.getErrorResponse() == ErrorResponse.REQUEST_ENTITY_TOO_LARGE) {
-                                event.getHook().editOriginal("Backup was too large to attach").queue();
+                                errorMessage = "Backup was too large to attach";
                             } else {
-                                event.getHook().editOriginal("Failed to attach backup").queue();
+                                errorMessage = "Failed to attach backup";
                             }
-                            LOGGER.error("Failed to upload zip file attachment", throwable);
+
+                            addError.accept(errorMessage);
                         }
 
                         if (message != null) {
@@ -211,8 +226,14 @@ public final class BackupInteractions {
                 }
 
             } catch (Exception e) {
-                event.getHook().editOriginal("Error creating backup").queue();
-                LOGGER.error("Error creating backup", e);
+                LOGGER.error("Unexpected error while creating backup", e);
+
+                messageLinesUpdater.stop(true);
+
+                if (uploadFuture == null) uploadFuture = CompletableFuture.completedFuture(null);
+                uploadFuture.whenCompleteAsync(withMDC((_, _) -> {
+                    addError.accept("Unexpected error while creating backup");
+                }));
             }
         }));
     }

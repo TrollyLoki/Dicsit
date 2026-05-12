@@ -44,10 +44,10 @@ public class MessageLinesUpdater {
         }
     }
 
-    public void stop() {
+    public void stop(boolean cancel) {
         synchronized (messageLines) {
             stopped = true;
-            waitForUpdate(false);
+            waitForUpdate(cancel);
         }
     }
 
