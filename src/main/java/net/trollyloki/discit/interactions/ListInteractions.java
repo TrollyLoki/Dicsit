@@ -131,16 +131,26 @@ public final class ListInteractions {
         if (isNotAdmin(event))
             return;
 
-        int serverCount = getGuildManager(event).getServers().size();
+        GuildManager guildManager = getGuildManager(event);
+        MessageTopLevelComponent mainComponent;
 
-        Guild guild = event.getGuild();
-        String message = guild != null ? guild.getName() + " has " : "You have ";
-        if (serverCount > 1) message += serverCount + " servers";
-        else if (serverCount == 1) message += "1 server";
-        else message += "no servers";
+        Map.Entry<UUID, Server> channelServer = guildManager.getChannelServer(event.getChannelId());
+        if (channelServer != null) {
+            mainComponent = serverDetailsContainer(event, channelServer.getKey().toString(), channelServer.getValue());
+        } else {
+            int serverCount = guildManager.getServers().size();
+
+            Guild guild = event.getGuild();
+            String message = guild != null ? guild.getName() + " has " : "You have ";
+            if (serverCount > 1) message += serverCount + " servers";
+            else if (serverCount == 1) message += "1 server";
+            else message += "no servers";
+
+            mainComponent = TextDisplay.of(message);
+        }
 
         event.replyComponents(
-                TextDisplay.of(message),
+                mainComponent,
                 serverSelectForDetails(event)
         ).useComponentsV2().setEphemeral(true).queue();
     }
