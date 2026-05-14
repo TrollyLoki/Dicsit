@@ -9,15 +9,11 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.FileUpload;
-import net.trollyloki.discit.InteractionUtils;
-import net.trollyloki.discit.MessageLinesUpdater;
-import net.trollyloki.discit.SaveInfo;
-import net.trollyloki.discit.Server;
+import net.trollyloki.discit.*;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -170,16 +166,12 @@ public final class BackupInteractions {
                         continue; // skip failed download
                     }
 
+                    // Now that there is data available it is safe to submit the upload request
                     if (uploadFuture == null) {
-                        // Now that there is data available it is safe to submit the upload request
-                        uploadFuture = CompletableFuture.supplyAsync(withMDC(() -> {
-                            try {
-                                // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
-                                return event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name.getAsString() + ".zip")).complete(false);
-                            } catch (RateLimitedException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }));
+                        // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
+                        uploadFuture = IndependentRateLimiter.submit(event.getHook().editOriginalAttachments(
+                                FileUpload.fromData(uploadStream, name.getAsString() + ".zip")
+                        ));
                     }
 
                     saveCount++;
@@ -208,7 +200,7 @@ public final class BackupInteractions {
                             LOGGER.error("Failed to upload zip file attachment", throwable);
 
                             String errorMessage;
-                            if (throwable.getCause() instanceof ErrorResponseException error
+                            if (throwable instanceof ErrorResponseException error
                                     && error.getErrorResponse() == ErrorResponse.REQUEST_ENTITY_TOO_LARGE) {
                                 errorMessage = "Backup was too large to attach";
                             } else {
