@@ -147,14 +147,15 @@ public final class BackupInteractions {
 
                     }));
 
-                    saveFuture.thenApplyAsync(withMDC(_ ->
+                    CompletableFuture<Void> updateFuture = saveFuture.thenApplyAsync(withMDC(_ ->
                             "Saved " + inlineServerDisplayName(server.getName())
                     )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                         messageLines.set(index, message);
                         messageLinesUpdater.update();
                     }));
 
-                    futures.add(saveFuture);
+                    // Make sure the future used for the loop below does not complete until the message update is submitted
+                    futures.add(updateFuture.thenCompose(_ -> saveFuture));
                 }
 
                 // Zip save files
