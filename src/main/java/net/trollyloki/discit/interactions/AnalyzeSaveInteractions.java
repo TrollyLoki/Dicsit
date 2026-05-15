@@ -157,8 +157,9 @@ public final class AnalyzeSaveInteractions {
         }
     }
 
-    private static List<TextDisplay> zipFileComponents(String filename, ZipInputStream zipStream) throws IOException {
+    private static List<? extends ContainerChildComponent> zipFileComponents(String filename, ZipInputStream zipStream) throws IOException {
         List<SaveFileEntry> entries = new ArrayList<>();
+        SaveFileInfo saveInfo = null;
 
         ZipEntry zipEntry;
         while ((zipEntry = zipStream.getNextEntry()) != null) {
@@ -166,8 +167,8 @@ public final class AnalyzeSaveInteractions {
 
             SaveFileStatus status;
             try {
-                SaveFileInfo info = readSaveFileInfo(zipEntry.getName(), zipStream);
-                status = SaveFileStatus.of(info);
+                saveInfo = readSaveFileInfo(zipEntry.getName(), zipStream);
+                status = SaveFileStatus.of(saveInfo);
             } catch (IOException e) {
                 LOGGER.warn("Failed to read save file \"{}\" within \"{}\"", zipEntry.getName(), filename, e);
                 status = SaveFileStatus.NONE;
@@ -177,10 +178,15 @@ public final class AnalyzeSaveInteractions {
             zipStream.closeEntry();
         }
 
-        TextDisplay header = TextDisplay.of("## " + escapeAll(filename));
+        TextDisplay header = TextDisplay.of("### " + escapeAll(filename));
 
         if (entries.isEmpty()) {
             return List.of(header, TextDisplay.of("*empty*"));
+        } else if (entries.size() == 1 && saveInfo != null) {
+            // Display full info for the single save file
+            List<ContainerChildComponent> components = saveFileInfoComponents(saveInfo);
+            components.addFirst(header);
+            return components;
         }
 
         entries.sort(null); // sort by status, "worst" first
