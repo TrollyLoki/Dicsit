@@ -2,6 +2,7 @@ package net.trollyloki.discit;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
@@ -95,6 +96,10 @@ public class Discit {
 
         jda = JDABuilder.createLight(BOT_TOKEN, Collections.emptyList()).build();
         jda.addEventListener(new InteractionListener());
+
+        if (VERSION != null) {
+            jda.getPresence().setPresence(Activity.customStatus("v" + VERSION), false);
+        }
 
         commands = jda.updateCommands().addCommands(
                 Commands.slash(ABOUT_COMMAND_NAME, "Display information about the app").setContexts(
