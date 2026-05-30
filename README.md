@@ -30,6 +30,7 @@ The message context command feature (right click on a message -> Apps -> Discit 
 The `/settings` command can be used to configure global app settings for a Discord server.
 Most settings can only be changed by members with the "Manager Server" permission.
 - An administrator role can be chosen to allow members without the "Manager Server" permission to use the below features
+- A save manager role can be chosen to allow members to download saves without allowing them to mess with the server
 - A dashboard channel can be chosen to display live server status information and shortcut action buttons
 - A log channel can be chosen to receive log messages when actions are performed
 - Automated alerts that mention a specified role if a server goes offline for a certain amount of time can be configured
