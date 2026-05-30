@@ -52,7 +52,7 @@ public final class BackupInteractions {
     private static final Emoji ERROR_EMOJI = Emoji.fromUnicode("❌");
 
     public static void onBackupCommand(SlashCommandInteractionEvent event) {
-        Map<UUID, Server> servers = getAllServersIfAdmin(event, true);
+        Map<UUID, Server> servers = getAllServersIfAdmin(event, true, true);
         if (servers == null)
             return;
 
@@ -77,7 +77,7 @@ public final class BackupInteractions {
             return;
         }
 
-        List<Server> servers = getServersIfAdmin(event, serverIds.getAsStringList());
+        List<Server> servers = getServersIfAdmin(event, serverIds.getAsStringList(), true);
         if (servers == null)
             return;
 

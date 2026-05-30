@@ -78,11 +78,8 @@ public final class ListInteractions {
 
         StringSelectMenu offlineAlertDelaySelect = createAlertDelaySelectMenu(buildId(OFFLINE_ALERT_DELAY_SELECT_ID, serverIdString), guildManager.getOfflineAlertDelay(serverId));
 
-        EntitySelectMenu.Builder serverChannelSelect = messageChannelSelect(buildId(SERVER_CHANNEL_SELECT_ID, serverIdString));
         GuildMessageChannel currentServerChannel = guildManager.getServerChannel(serverId);
-        if (currentServerChannel != null) {
-            serverChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentServerChannel));
-        }
+        EntitySelectMenu.Builder serverChannelSelect = messageChannelSelect(buildId(SERVER_CHANNEL_SELECT_ID, serverIdString), currentServerChannel);
 
         IMentionable logChannel = guildManager.getLogChannel();
         String logChannelString = logChannel == null ? "unset" : logChannel.getAsMention();

@@ -15,6 +15,7 @@ public class GuildData {
     private int dataVersion = 0;
 
     private @Nullable String adminRoleId;
+    private @Nullable String saveManagerRoleId;
     private @Nullable String dashboardChannelId;
     private @Nullable String logChannelId;
     private @Nullable String alertRoleId;
@@ -38,6 +39,14 @@ public class GuildData {
 
     public void setAdminRoleId(@Nullable String adminRoleId) {
         this.adminRoleId = adminRoleId;
+    }
+
+    public @Nullable String getSaveManagerRoleId() {
+        return saveManagerRoleId;
+    }
+
+    public void setSaveManagerRoleId(@Nullable String saveManagerRoleId) {
+        this.saveManagerRoleId = saveManagerRoleId;
     }
 
     public @Nullable String getDashboardChannelId() {

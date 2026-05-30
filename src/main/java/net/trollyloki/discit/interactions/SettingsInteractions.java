@@ -11,7 +11,6 @@ import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
@@ -36,6 +35,7 @@ public final class SettingsInteractions {
     public static final String
             SETTINGS_COMMAND_NAME = "settings",
             ADMIN_ROLE_SELECT_ID = "admin-role",
+            SAVE_MANAGER_ROLE_SELECT_ID = "save-manager-role",
             DASHBOARD_CHANNEL_SELECT_ID = "dashboard-channel",
             LOG_CHANNEL_SELECT_ID = "log-channel",
             ALERT_ROLE_SELECT_ID = "alert-role",
@@ -47,30 +47,13 @@ public final class SettingsInteractions {
         Member member = interaction.getMember();
         boolean canManageGuild = member != null && member.hasPermission(Permission.MANAGE_SERVER);
 
-        EntitySelectMenu.Builder adminRoleSelect = EntitySelectMenu.create(ADMIN_ROLE_SELECT_ID, EntitySelectMenu.SelectTarget.ROLE);
-        Role currentAdminRole = guildManager.getAdminRole();
-        if (currentAdminRole != null) {
-            adminRoleSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentAdminRole));
-        }
-
-        EntitySelectMenu.Builder dashboardChannelSelect = messageChannelSelect(DASHBOARD_CHANNEL_SELECT_ID);
-        GuildMessageChannel currentDashboardChannel = guildManager.getDashboardChannel();
-        if (currentDashboardChannel != null) {
-            dashboardChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentDashboardChannel));
-        }
-
-        EntitySelectMenu.Builder logChannelSelect = messageChannelSelect(LOG_CHANNEL_SELECT_ID);
-        GuildMessageChannel currentLogChannel = guildManager.getLogChannel();
-        if (currentLogChannel != null) {
-            logChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentLogChannel));
-        }
-
-        EntitySelectMenu.Builder alertRoleSelect = EntitySelectMenu.create(ALERT_ROLE_SELECT_ID, EntitySelectMenu.SelectTarget.ROLE);
         Role currentAlertRole = guildManager.getAlertRole();
-        if (currentAlertRole != null) {
-            alertRoleSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentAlertRole));
-        }
 
+        EntitySelectMenu.Builder adminRoleSelect = roleSelect(ADMIN_ROLE_SELECT_ID, guildManager.getAdminRole());
+        EntitySelectMenu.Builder saveManagerRoleSelect = roleSelect(SAVE_MANAGER_ROLE_SELECT_ID, guildManager.getSaveManagerRole());
+        EntitySelectMenu.Builder dashboardChannelSelect = messageChannelSelect(DASHBOARD_CHANNEL_SELECT_ID, guildManager.getDashboardChannel());
+        EntitySelectMenu.Builder logChannelSelect = messageChannelSelect(LOG_CHANNEL_SELECT_ID, guildManager.getLogChannel());
+        EntitySelectMenu.Builder alertRoleSelect = roleSelect(ALERT_ROLE_SELECT_ID, currentAlertRole);
         StringSelectMenu defaultOfflineAlertDelaySelect = createAlertDelaySelectMenu(DEFAULT_OFFLINE_ALERT_DELAY_SELECT_ID, guildManager.getDefaultOfflineAlertDelay());
 
         String title = "## Settings";
@@ -84,12 +67,16 @@ public final class SettingsInteractions {
                 TextDisplay.of("Users with this role will have full administrator access to **all added servers**"),
                 ActionRow.of(adminRoleSelect.setPlaceholder("Select a role").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.SMALL),
+                TextDisplay.of("### Save Manager Role"),
+                TextDisplay.of("Users with this role will be able to download and backup saves from **all added servers**"),
+                ActionRow.of(saveManagerRoleSelect.setPlaceholder("Select a role").setDisabled(!canManageGuild).build()),
+                Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Dashboard Channel"),
                 TextDisplay.of("Live server statuses will be displayed in this channel"),
                 ActionRow.of(dashboardChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Log Channel"),
-                TextDisplay.of("A message will be sent to this channel each time an action that requires administrator access is performed"),
+                TextDisplay.of("A message will be sent to this channel each time an action is performed"),
                 ActionRow.of(logChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Alert Role"),
@@ -119,6 +106,16 @@ public final class SettingsInteractions {
 
         event.getHook().sendMessage("Administrator role set to " + selection.getAsMention()).setEphemeral(true).queue();
         logAction(event, "set the administrator role to " + selection.getAsMention());
+    }
+
+    public static void onSaveManagerRoleSelect(EntitySelectInteractionEvent event) {
+        if (cannotManageGuild(event))
+            return;
+
+        IMentionable selection = onEntitySelectHelper(event, GuildManager::setSaveManagerRole);
+
+        event.getHook().sendMessage("Save manager role set to " + selection.getAsMention()).setEphemeral(true).queue();
+        logAction(event, "set the save manager role to " + selection.getAsMention());
     }
 
     public static void onDashboardChannelSelect(EntitySelectInteractionEvent event) {

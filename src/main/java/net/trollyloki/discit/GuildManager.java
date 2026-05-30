@@ -124,13 +124,24 @@ public class GuildManager {
         return getGuild().getChannelById(GuildMessageChannel.class, channelId);
     }
 
+    private boolean hasRole(Member member, @Nullable Role role) {
+        return role != null && member.getUnsortedRoles().contains(role);
+    }
+
     public boolean hasAdminRole(Member member) {
-        Role adminRole = getAdminRole();
-        return adminRole != null && member.getUnsortedRoles().contains(adminRole);
+        return hasRole(member, getAdminRole());
+    }
+
+    public boolean hasSaveManagerRole(Member member) {
+        return hasRole(member, getSaveManagerRole());
     }
 
     public @Nullable Role getAdminRole() {
         return getRole(data.getAdminRoleId());
+    }
+
+    public @Nullable Role getSaveManagerRole() {
+        return getRole(data.getSaveManagerRoleId());
     }
 
     public @Nullable GuildMessageChannel getDashboardChannel() {
@@ -151,6 +162,11 @@ public class GuildManager {
 
     public void setAdminRole(@Nullable String roleId) {
         data.setAdminRoleId(roleId);
+        save();
+    }
+
+    public void setSaveManagerRole(@Nullable String roleId) {
+        data.setSaveManagerRoleId(roleId);
         save();
     }
 

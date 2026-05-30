@@ -82,7 +82,7 @@ public final class UploadInteractions {
 
     // There's no common interface combining just IReplyCallback and IModalCallback
     private static void onUploadHelper(IReplyCallback replyCallback, IModalCallback modalCallback, Function<String, LabelChildComponent> saveFileComponentCreator) {
-        Map<UUID, Server> servers = getAllServersIfAdmin(replyCallback);
+        Map<UUID, Server> servers = getAllServersIfAdmin(replyCallback, false);
         if (servers == null)
             return;
 

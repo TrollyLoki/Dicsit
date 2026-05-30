@@ -57,7 +57,7 @@ public final class ReloadInteractions {
             return;
         }
 
-        Map<UUID, Server> servers = getAllServersIfAdmin(event);
+        Map<UUID, Server> servers = getAllServersIfAdmin(event, false);
         if (servers == null)
             return;
 

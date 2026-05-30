@@ -45,7 +45,7 @@ public final class SaveInteractions {
             SAVE_MODAL_ID = "save";
 
     public static void onSaveCommand(SlashCommandInteractionEvent event) {
-        Map<UUID, Server> servers = getAllServersIfAdmin(event);
+        Map<UUID, Server> servers = getAllServersIfAdmin(event, false, true);
         if (servers == null)
             return;
 
@@ -53,7 +53,7 @@ public final class SaveInteractions {
     }
 
     public static void onSaveButton(ButtonInteractionEvent event, String serverIdString) {
-        Server server = getServerIfAdmin(event, serverIdString);
+        Server server = getServerIfAdmin(event, serverIdString, true);
         if (server == null)
             return;
 
@@ -94,7 +94,7 @@ public final class SaveInteractions {
             serverIdString = serverIds.getAsStringList().getFirst();
         }
 
-        Server server = getServerIfAdmin(event, serverIdString);
+        Server server = getServerIfAdmin(event, serverIdString, true);
         if (server == null)
             return;
 

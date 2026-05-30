@@ -101,6 +101,7 @@ public class InteractionListener extends ListenerAdapter {
             String[] id = splitId(event.getComponentId());
             switch (id[0]) {
                 case ADMIN_ROLE_SELECT_ID -> onAdminRoleSelect(event);
+                case SAVE_MANAGER_ROLE_SELECT_ID -> onSaveManagerRoleSelect(event);
                 case DASHBOARD_CHANNEL_SELECT_ID -> onDashboardChannelSelect(event);
                 case LOG_CHANNEL_SELECT_ID -> onLogChannelSelect(event);
                 case ALERT_ROLE_SELECT_ID -> onAlertRoleSelect(event);

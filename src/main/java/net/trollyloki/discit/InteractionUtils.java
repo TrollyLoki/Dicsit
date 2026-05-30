@@ -8,7 +8,9 @@ import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.entities.messages.MessageSnapshot;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
@@ -111,21 +113,34 @@ public final class InteractionUtils {
     }
 
     public static boolean isNotAdmin(IReplyCallback callback) {
+        return isNotAdmin(callback, false);
+    }
+
+    public static boolean isNotAdmin(IReplyCallback callback, boolean allowSaveManagers) {
         Member member = getMember(callback);
         if (member == null)
             return true;
 
-        if (member.hasPermission(Permission.MANAGE_SERVER) || getGuildManager(callback).hasAdminRole(member)) {
+        GuildManager guildManager = getGuildManager(callback);
+        if (
+                member.hasPermission(Permission.MANAGE_SERVER)
+                        || guildManager.hasAdminRole(member)
+                        || allowSaveManagers && guildManager.hasSaveManagerRole(member)
+        ) {
             return false;
         }
 
-        LOGGER.info("Unauthorized user: {} does not have the administrator role or Manager Server permission", callback.getUser().getAsMention());
+        LOGGER.info("Unauthorized user: {} does not have any of the allowed roles nor the Manager Server permission", callback.getUser().getAsMention());
         callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
 
     public static @Nullable Server getServerIfAdmin(IReplyCallback callback, String serverIdString) {
-        if (isNotAdmin(callback))
+        return getServerIfAdmin(callback, serverIdString, false);
+    }
+
+    public static @Nullable Server getServerIfAdmin(IReplyCallback callback, String serverIdString, boolean allowSaveManagers) {
+        if (isNotAdmin(callback, allowSaveManagers))
             return null;
 
         Server server = getGuildManager(callback).getServer(UUID.fromString(serverIdString));
@@ -138,7 +153,11 @@ public final class InteractionUtils {
     }
 
     public static @Nullable Map<UUID, Server> getAllServersIfAdmin(IReplyCallback callback, boolean ignoreServerChannels) {
-        if (isNotAdmin(callback))
+        return getAllServersIfAdmin(callback, ignoreServerChannels, false);
+    }
+
+    public static @Nullable Map<UUID, Server> getAllServersIfAdmin(IReplyCallback callback, boolean ignoreServerChannels, boolean allowSaveManagers) {
+        if (isNotAdmin(callback, allowSaveManagers))
             return null;
 
         GuildManager guildManager = getGuildManager(callback);
@@ -160,14 +179,14 @@ public final class InteractionUtils {
         return servers;
     }
 
-    public static @Nullable Map<UUID, Server> getAllServersIfAdmin(IReplyCallback callback) {
-        return getAllServersIfAdmin(callback, false);
+    public static @Nullable List<Server> getServersIfAdmin(IReplyCallback callback, Collection<String> serverIdStrings) {
+        return getServersIfAdmin(callback, serverIdStrings, false);
     }
 
-    public static @Nullable List<Server> getServersIfAdmin(IReplyCallback callback, Collection<String> serverIdStrings) {
+    public static @Nullable List<Server> getServersIfAdmin(IReplyCallback callback, Collection<String> serverIdStrings, boolean allowSaveManagers) {
         List<Server> servers = new ArrayList<>(serverIdStrings.size());
         for (String serverIdString : serverIdStrings) {
-            Server server = getServerIfAdmin(callback, serverIdString);
+            Server server = getServerIfAdmin(callback, serverIdString, allowSaveManagers);
             if (server == null)
                 return null;
 
@@ -207,9 +226,21 @@ public final class InteractionUtils {
 
     private static final List<ChannelType> GUILD_MESSAGE_CHANNEL_TYPES = ChannelType.guildTypes().stream().filter(ChannelType::isMessage).toList();
 
-    public static EntitySelectMenu.Builder messageChannelSelect(String customId) {
-        return EntitySelectMenu.create(customId, EntitySelectMenu.SelectTarget.CHANNEL)
-                .setChannelTypes(GUILD_MESSAGE_CHANNEL_TYPES);
+    public static EntitySelectMenu.Builder messageChannelSelect(String customId, @Nullable GuildChannel defaultValue) {
+        EntitySelectMenu.Builder builder = EntitySelectMenu.create(customId, EntitySelectMenu.SelectTarget.CHANNEL);
+        builder.setChannelTypes(GUILD_MESSAGE_CHANNEL_TYPES);
+        if (defaultValue != null) {
+            builder.setDefaultValues(EntitySelectMenu.DefaultValue.from(defaultValue));
+        }
+        return builder;
+    }
+
+    public static EntitySelectMenu.Builder roleSelect(String customId, @Nullable Role defaultValue) {
+        EntitySelectMenu.Builder builder = EntitySelectMenu.create(customId, EntitySelectMenu.SelectTarget.ROLE);
+        if (defaultValue != null) {
+            builder.setDefaultValues(EntitySelectMenu.DefaultValue.from(defaultValue));
+        }
+        return builder;
     }
 
     public static StringSelectMenu createIntSelectMenu(String customId, IntFunction<String> labelFunction, int current, int[] ascendingOptions) {
