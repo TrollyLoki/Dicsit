@@ -243,7 +243,7 @@ public final class InteractionUtils {
         return builder;
     }
 
-    public static StringSelectMenu createIntSelectMenu(String customId, IntFunction<String> labelFunction, int current, int[] ascendingOptions) {
+    public static StringSelectMenu createIntSelectMenu(String customId, IntFunction<String> labelFunction, @Nullable Integer current, int[] ascendingOptions) {
         int maxOptions = StringSelectMenu.OPTIONS_MAX_AMOUNT - 1;
         if (ascendingOptions.length > maxOptions) {
             throw new IllegalArgumentException("Too many options: " + ascendingOptions.length + " > " + maxOptions);
@@ -251,7 +251,7 @@ public final class InteractionUtils {
 
         StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
 
-        boolean currentAdded = false;
+        boolean currentAdded = current == null;
         for (int value : ascendingOptions) {
 
             if (!currentAdded && value >= current) {
@@ -269,7 +269,10 @@ public final class InteractionUtils {
             selectMenu.addOption(labelFunction.apply(current), Integer.toString(current));
         }
 
-        return selectMenu.setDefaultValues(Integer.toString(current)).build();
+        if (current != null) {
+            selectMenu.setDefaultValues(Integer.toString(current));
+        }
+        return selectMenu.build();
     }
 
     public static StringSelectMenu createAlertDelaySelectMenu(String customId, @Nullable Duration currentDelay) {

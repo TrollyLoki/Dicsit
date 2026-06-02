@@ -62,7 +62,7 @@ The dashboard channel displays live status information about all added servers a
 - The "Download Save" button creates a save on the server and then downloads that save
 - The "Upload Save" button can be used to upload a save file to the server and (optionally) load it
 - The "New Session" button can be used to create a new game on the server
-- The "Advanced Game Settings" button can be used to **enable** specific Advanced Game Settings on the server's currently loaded session (due to API limitations, the app cannot disable **any** Advanced Game Settings)
+- The "Creative Mode" button can be used to **enable** specific Creative Mode settings on the server's currently loaded session (due to API limitations, the app cannot disable **any** Creative Mode settings)
 - The "Rename Server" button can be used to rename the server
 - The "Server Options" button can be used to change the server's settings
 - The "Change Client Password" button can be used to change or remove the server's client password

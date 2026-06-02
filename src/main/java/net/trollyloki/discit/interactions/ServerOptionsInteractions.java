@@ -87,44 +87,64 @@ public final class ServerOptionsInteractions {
         return switch (key) {
             case ServerOptions.AUTO_PAUSE -> "Auto Pause";
             case ServerOptions.AUTO_SAVE_ON_DISCONNECT -> "Auto-Save on Player Disconnect";
-            case ServerOptions.DISABLE_SEASONAL_EVENTS -> "Disable Seasonal Events";
             case ServerOptions.AUTOSAVE_INTERVAL -> "Autosave Interval";
             case ServerOptions.SERVER_RESTART_SCHEDULE -> "Server Restart Schedule";
+            case ServerOptions.SEND_CRASH_REPORTS -> "Send Crash Reports";
             case ServerOptions.SEND_GAMEPLAY_DATA -> "Send Gameplay Data";
             case ServerOptions.NETWORK_QUALITY -> "Network Quality";
+            case ServerOptions.ENABLE_SEASONAL_EVENTS -> "Seasonal Events";
+            case ServerOptions.WEATHER_PRESET -> "Weather Preset";
             default -> "Unknown";
         };
     }
 
-    private static String getNetworkQualityName(String value) {
-        return switch (value) {
-            case "0" -> "Low";
-            case "1" -> "Medium";
-            case "2" -> "High";
-            case "3" -> "Ultra";
-            default -> "Unknown";
-        };
+    private static final String[] NETWORK_QUALITIES = {"Low", "Medium", "High", "Ultra"};
+    private static final String[] WEATHER_PRESETS = {"Default", "Dry", "Wet", "The Great MASSAGE-2 (AB)b", "Clear", "Raining Kittens and Puppies", "Extreme"};
+
+    private static boolean isPending(ServerOptions options, String key) {
+        boolean pending = options.pending().containsKey(key);
+
+        if (!pending && key.equalsIgnoreCase(ServerOptions.ENABLE_SEASONAL_EVENTS)) {
+            //noinspection deprecation: support servers that are still using the old seasonal events option
+            return options.pending().containsKey(ServerOptions.DISABLE_SEASONAL_EVENTS);
+        }
+
+        return pending;
     }
 
-    private static String getPendingOrCurrentValue(ServerOptions options, String key) {
+    private static @Nullable String getPendingOrCurrentValue(ServerOptions options, String key) {
         String current = options.pending().get(key);
         if (current == null) {
             current = options.current().get(key);
         }
+
+        if (current == null && key.equals(ServerOptions.ENABLE_SEASONAL_EVENTS)) {
+            //noinspection deprecation: support servers that are still using the old seasonal events option
+            String invertedValue = getPendingOrCurrentValue(options, ServerOptions.DISABLE_SEASONAL_EVENTS);
+            return "true".equalsIgnoreCase(invertedValue) ? "False" : "True";
+        }
+
         return current;
     }
 
-    private static StringSelectMenu networkQualitySelectMenu(String serverIdString, ServerOptions options) {
-        String current = getPendingOrCurrentValue(options, ServerOptions.NETWORK_QUALITY);
+    private static @Nullable Integer getPendingOrCurrentInteger(ServerOptions options, String key) {
+        String value = getPendingOrCurrentValue(options, key);
+        if (value == null) return null;
+        return (int) Float.parseFloat(value);
+    }
 
-        String customId = buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, ServerOptions.NETWORK_QUALITY);
+    private static StringSelectMenu valueSelectMenu(String serverIdString, ServerOptions options, String key, String... values) {
+        String current = getPendingOrCurrentValue(options, key);
+
+        String customId = buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, key);
         StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
-        for (int i = 0; i <= 3; i++) {
-            String value = Integer.toString(i);
-            selectMenu.addOption(getNetworkQualityName(value), value);
+        for (int i = 0; i < values.length; i++) {
+            selectMenu.addOption(values[i], Integer.toString(i));
         }
-        selectMenu.setDefaultValues(current);
 
+        if (current != null) {
+            selectMenu.setDefaultValues(current);
+        }
         return selectMenu.build();
     }
 
@@ -161,7 +181,7 @@ public final class ServerOptionsInteractions {
     }
 
     private static StringSelectMenu autosaveIntervalSelectMenu(String serverIdString, ServerOptions options) {
-        int current = (int) Float.parseFloat(getPendingOrCurrentValue(options, ServerOptions.AUTOSAVE_INTERVAL));
+        Integer current = getPendingOrCurrentInteger(options, ServerOptions.AUTOSAVE_INTERVAL);
 
         String customId = buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, ServerOptions.AUTOSAVE_INTERVAL);
         return createIntSelectMenu(customId, ServerOptionsInteractions::formatInterval, current, AUTOSAVE_INTERVAL_OPTIONS);
@@ -182,7 +202,7 @@ public final class ServerOptionsInteractions {
     }
 
     private static StringSelectMenu restartScheduleSelectMenu(String serverIdString, ServerOptions options) {
-        int current = (int) Float.parseFloat(getPendingOrCurrentValue(options, ServerOptions.SERVER_RESTART_SCHEDULE));
+        Integer current = getPendingOrCurrentInteger(options, ServerOptions.SERVER_RESTART_SCHEDULE);
 
         String customId = buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, ServerOptions.SERVER_RESTART_SCHEDULE);
         return createIntSelectMenu(customId, ServerOptionsInteractions::formatRestartTime, current, RESTART_SCHEDULE_OPTIONS);
@@ -199,12 +219,20 @@ public final class ServerOptionsInteractions {
             emoji = CHECKBOX_EMPTY_EMOJI;
         }
 
-        if (options.pending().containsKey(key)) {
+        if (isPending(options, key)) {
             emoji = RELOAD_EMOJI;
         }
 
         return Button.secondary(buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, key, value), getOptionName(key))
                 .withEmoji(emoji);
+    }
+
+    private static TextDisplay labelText(ServerOptions options, String key) {
+        String string = getOptionName(key);
+        if (isPending(options, key)) {
+            string = RELOAD_EMOJI.getFormatted() + " " + string;
+        }
+        return TextDisplay.of(string);
     }
 
     private record OptionsInfo(ServerOptions options, ServerSessions sessions, ServerGameState gameState) {
@@ -214,7 +242,7 @@ public final class ServerOptionsInteractions {
     }
 
     private static Container optionsContainer(String serverIdString, @Nullable String serverName, OptionsInfo optionsInfo) {
-        List<ContainerChildComponent> components = new ArrayList<>(17);
+        List<ContainerChildComponent> components = new ArrayList<>(21);
 
         components.add(TextDisplay.of("# Server Options\n## " + escapedServerName(serverName)));
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
@@ -228,17 +256,22 @@ public final class ServerOptionsInteractions {
         ));
 
         components.add(TextDisplay.of("### Gameplay"));
-        components.add(TextDisplay.of(getOptionName(ServerOptions.AUTOSAVE_INTERVAL)));
+        components.add(labelText(optionsInfo.options, ServerOptions.AUTOSAVE_INTERVAL));
         components.add(ActionRow.of(autosaveIntervalSelectMenu(serverIdString, optionsInfo.options)));
-        components.add(TextDisplay.of(getOptionName(ServerOptions.SERVER_RESTART_SCHEDULE)));
+        components.add(labelText(optionsInfo.options, ServerOptions.SERVER_RESTART_SCHEDULE));
         components.add(ActionRow.of(restartScheduleSelectMenu(serverIdString, optionsInfo.options)));
         components.add(ActionRow.of(
-                booleanButton(serverIdString, optionsInfo.options, ServerOptions.DISABLE_SEASONAL_EVENTS),
+                booleanButton(serverIdString, optionsInfo.options, ServerOptions.SEND_CRASH_REPORTS),
                 booleanButton(serverIdString, optionsInfo.options, ServerOptions.SEND_GAMEPLAY_DATA)
         ));
-        components.add(TextDisplay.of((optionsInfo.options.pending().containsKey(ServerOptions.NETWORK_QUALITY)
-                ? RELOAD_EMOJI.getFormatted() + " " : "") + getOptionName(ServerOptions.NETWORK_QUALITY)));
-        components.add(ActionRow.of(networkQualitySelectMenu(serverIdString, optionsInfo.options)));
+        components.add(labelText(optionsInfo.options, ServerOptions.NETWORK_QUALITY));
+        components.add(ActionRow.of(valueSelectMenu(serverIdString, optionsInfo.options, ServerOptions.NETWORK_QUALITY, NETWORK_QUALITIES)));
+        components.add(ActionRow.of(
+                booleanButton(serverIdString, optionsInfo.options, ServerOptions.ENABLE_SEASONAL_EVENTS)
+        ));
+        components.add(TextDisplay.of("### World"));
+        components.add(labelText(optionsInfo.options, ServerOptions.WEATHER_PRESET));
+        components.add(ActionRow.of(valueSelectMenu(serverIdString, optionsInfo.options, ServerOptions.WEATHER_PRESET, WEATHER_PRESETS)));
 
         if (!optionsInfo.options.pending().isEmpty()) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
@@ -307,7 +340,16 @@ public final class ServerOptionsInteractions {
 
         interaction.deferEdit().queue();
 
-        Map<String, String> options = Map.of(key, value);
+        Map<String, String> options;
+        if (key.equals(ServerOptions.ENABLE_SEASONAL_EVENTS)) {
+            //noinspection deprecation: support servers that are still using the old seasonal events option
+            options = Map.of(
+                    key, value,
+                    ServerOptions.DISABLE_SEASONAL_EVENTS, Boolean.toString(value.equalsIgnoreCase("false"))
+            );
+        } else {
+            options = Map.of(key, value);
+        }
         LOGGER.info("Applying server options {} to {}", options, serverNameForLog(server.getName()));
 
         requestAsyncWithMDC(server, "apply server options to", httpsApi -> {
@@ -316,14 +358,19 @@ public final class ServerOptionsInteractions {
         }).thenAcceptAsync(withMDC(optionsInfo -> {
             String newValue = getPendingOrCurrentValue(optionsInfo.options, key);
 
-            String formattedValue = switch (key) {
-                case ServerOptions.NETWORK_QUALITY -> getNetworkQualityName(newValue);
-                case ServerOptions.AUTOSAVE_INTERVAL -> formatInterval((int) Float.parseFloat(newValue));
-                case ServerOptions.SERVER_RESTART_SCHEDULE -> formatRestartTime((int) Float.parseFloat(newValue));
-                default -> newValue;
-            };
+            if (newValue == null) {
+                interaction.getHook().sendMessage("The " + getOptionName(key) + " option is not supported by this server").setEphemeral(true).queue();
+            } else {
+                String formattedValue = switch (key) {
+                    case ServerOptions.NETWORK_QUALITY -> NETWORK_QUALITIES[Integer.parseInt(newValue)];
+                    case ServerOptions.WEATHER_PRESET -> WEATHER_PRESETS[Integer.parseInt(newValue)];
+                    case ServerOptions.AUTOSAVE_INTERVAL -> formatInterval((int) Float.parseFloat(newValue));
+                    case ServerOptions.SERVER_RESTART_SCHEDULE -> formatRestartTime((int) Float.parseFloat(newValue));
+                    default -> newValue;
+                };
 
-            logActionWithServer(interaction, "set " + getOptionName(key) + " to " + formattedValue + " for", server.getName());
+                logActionWithServer(interaction, "set " + getOptionName(key) + " to " + formattedValue + " for", server.getName());
+            }
 
             interaction.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
                     .useComponentsV2().queue();

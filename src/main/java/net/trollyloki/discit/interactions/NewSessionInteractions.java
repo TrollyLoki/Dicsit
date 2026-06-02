@@ -11,7 +11,7 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
-import net.trollyloki.jicsit.server.https.AdvancedGameSettings;
+import net.trollyloki.jicsit.server.https.CreativeModeSettings;
 import net.trollyloki.jicsit.server.https.NewGameData;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -58,7 +58,7 @@ public final class NewSessionInteractions {
                         .addOption("Northern Forest", NewGameData.NORTHERN_FOREST, "Good for more experienced pioneers")
                         .addOption("Dune Desert", NewGameData.DUNE_DESERT, "Recommended for advanced pioneers")
                         .build()),
-                Label.of("Starting Tier", "Selecting a starting tier will enable Advanced Game Settings", StringSelectMenu.create("tier")
+                Label.of("Starting Tier", "Selecting a starting tier will enable Creative Mode", StringSelectMenu.create("tier")
                         .setPlaceholder("Select starting tier")
                         .setRequired(false)
                         .addOption("Onboarding", "0")
@@ -73,7 +73,7 @@ public final class NewSessionInteractions {
                         .addOption("Tier 9", "9")
                         .addOption("Unlock All Tiers", "10")
                         .build()),
-                Label.of("Set Game Phase", "Selecting a phase will enable Advanced Game Settings", StringSelectMenu.create("phase")
+                Label.of("Set Game Phase", "Selecting a phase will enable Creative Mode", StringSelectMenu.create("phase")
                         .setPlaceholder("Select phase")
                         .setRequired(false)
                         .addOption("Onboarding", "0", "Unlocks Tiers 1 & 2")
@@ -111,7 +111,7 @@ public final class NewSessionInteractions {
         NewGameData.Builder builder = NewGameData.builder(name.getAsString());
         builder.startingLocation(location.getAsStringList().getFirst());
         Map<String, String> settings = buildSettings(tier, phase);
-        if (settings != null) builder.advancedGameSettings(settings);
+        if (settings != null) builder.creativeModeSettings(settings);
         NewGameData newGameData = builder.build();
 
         event.deferReply(isDashboard(event)).queue();
@@ -135,20 +135,20 @@ public final class NewSessionInteractions {
         Map<String, String> settings = null;
         if (!tierAsList.isEmpty() || !phaseAsList.isEmpty()) {
             settings = new HashMap<>();
-            settings.put(AdvancedGameSettings.STARTING_TIER, tierAsList.isEmpty() ? "0" : tierAsList.getFirst());
-            settings.put(AdvancedGameSettings.SET_GAME_PHASE, phaseAsList.isEmpty() ? "0" : phaseAsList.getFirst());
+            settings.put(CreativeModeSettings.STARTING_TIER, tierAsList.isEmpty() ? "0" : tierAsList.getFirst());
+            settings.put(CreativeModeSettings.SET_GAME_PHASE, phaseAsList.isEmpty() ? "0" : phaseAsList.getFirst());
 
             // Workaround apparent bug where previous settings don't get replaced by explicitly setting values to false
-            settings.put(AdvancedGameSettings.NO_POWER, "False");
-            settings.put(AdvancedGameSettings.NO_FUEL, "False");
-            settings.put(AdvancedGameSettings.NO_UNLOCK_COST, "False");
-            settings.put(AdvancedGameSettings.UNLOCK_ALTERNATE_RECIPES_INSTANTLY, "False");
-            settings.put(AdvancedGameSettings.NO_BUILD_COST, "False");
-            settings.put(AdvancedGameSettings.GOD_MODE, "False");
-            settings.put(AdvancedGameSettings.FLIGHT_MODE, "False");
-            settings.put(AdvancedGameSettings.UNLOCK_ALL_RESEARCH, "False");
-            settings.put(AdvancedGameSettings.UNLOCK_ALL_IN_AWESOME_SHOP, "False");
-            settings.put(AdvancedGameSettings.DISABLE_ARACHNID_CREATURES, "False");
+            settings.put(CreativeModeSettings.NO_POWER, "False");
+            settings.put(CreativeModeSettings.NO_FUEL, "False");
+            settings.put(CreativeModeSettings.NO_UNLOCK_COST, "False");
+            settings.put(CreativeModeSettings.UNLOCK_ALTERNATE_RECIPES_INSTANTLY, "False");
+            settings.put(CreativeModeSettings.NO_BUILD_COST, "False");
+            settings.put(CreativeModeSettings.GOD_MODE, "False");
+            settings.put(CreativeModeSettings.FLIGHT_MODE, "False");
+            settings.put(CreativeModeSettings.UNLOCK_ALL_RESEARCH, "False");
+            settings.put(CreativeModeSettings.UNLOCK_ALL_IN_AWESOME_SHOP, "False");
+            settings.put(CreativeModeSettings.DISABLE_ARACHNID_CREATURES, "False");
         }
         return settings;
     }

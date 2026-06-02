@@ -27,8 +27,8 @@ import static net.trollyloki.discit.InteractionListener.DASHBOARD_REFRESH_BUTTON
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
-import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.AGS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
+import static net.trollyloki.discit.interactions.CreativeModeInteractions.CREATIVE_MODE_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ListInteractions.AUTHENTICATE_BUTTON_ID;
 import static net.trollyloki.discit.interactions.NewSessionInteractions.NEW_SESSION_BUTTON_ID;
@@ -155,7 +155,7 @@ public class ServerInfoCache {
 
                 gameRow.add(Button.secondary(buildId(NEW_SESSION_BUTTON_ID, serverId), "New Session").withEmoji(Emoji.fromUnicode("🚀")));
                 if (playing) {
-                    gameRow.add(Button.secondary(buildId(AGS_BUTTON_ID, serverId), "Advanced Game Settings").withEmoji(Emoji.fromUnicode("✏️")));
+                    gameRow.add(Button.secondary(buildId(CREATIVE_MODE_BUTTON_ID, serverId), "Creative Mode").withEmoji(Emoji.fromUnicode("✏️")));
                 }
 
                 optionsRow.add(Button.secondary(buildId(RENAME_BUTTON_ID, serverId), "Rename Server").withEmoji(Emoji.fromUnicode("🪧")));
