@@ -24,12 +24,20 @@ public final class FormattingUtils {
         return String.format("%,d:%02d:%02d", duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart());
     }
 
+    public static String buildLink(String prefix, int build) {
+        return "[" + prefix + String.format("%1$d](https://satisfactory.wiki.gg/wiki/Special:Search?search=\"%1$d\"+incategory:\"Patch+notes\")", build);
+    }
+
+    public static String buildLink(int build) {
+        return buildLink("", build);
+    }
+
     public static String escapeAll(String text) {
         return text.replaceAll("([\\\\*_`|~#<@>\\[\\]()\\-.])", "\\\\$1");
     }
 
     public static String safeMonospace(String text) {
-        return '`' + text.replaceAll("`", "") + '`';
+        return '`' + text.replace("`", "") + '`';
     }
 
     public static String serverDisplayName(@Nullable String serverName) {

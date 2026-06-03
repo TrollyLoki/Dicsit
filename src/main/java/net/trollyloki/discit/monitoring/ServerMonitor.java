@@ -138,6 +138,7 @@ public class ServerMonitor implements Closeable {
             ServerState state = response.state();
 
             String name = state.name();
+            int build = state.build();
             ServerStatus status = state.status();
             short gameStateVersion = state.subStateVersion(ServerSubState.SERVER_GAME_STATE);
 
@@ -183,7 +184,7 @@ public class ServerMonitor implements Closeable {
                     lastGameStateVersion = gameStateVersion;
                 }
 
-                updateDashboardInfo(status, ping);
+                updateDashboardInfo(build, status, ping);
 
             });
 
@@ -206,13 +207,13 @@ public class ServerMonitor implements Closeable {
             lastStatus = null;
             lastGameStateVersion = 0;
 
-            updateDashboardInfo(ServerStatus.OFFLINE, null);
+            updateDashboardInfo(0, ServerStatus.OFFLINE, null);
 
         }, Discit.OFFLINE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 
-    private void updateDashboardInfo(ServerStatus status, @Nullable Duration ping) {
-        infoCache.setInfo(server.getName(), status, gameStateCache.getMessage(), gameStateCache.getGameState(), ping);
+    private void updateDashboardInfo(int build, ServerStatus status, @Nullable Duration ping) {
+        infoCache.setInfo(server.getName(), build, status, gameStateCache.getMessage(), gameStateCache.getGameState(), ping);
     }
 
 }

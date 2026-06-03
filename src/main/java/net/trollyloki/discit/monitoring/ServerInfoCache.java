@@ -48,6 +48,7 @@ public class ServerInfoCache {
     private final DashboardUpdater dashboardUpdater;
 
     private @Nullable String name;
+    private int build;
     private @Nullable ServerStatus status;
     private @Nullable String message;
     private @Nullable ServerGameState gameState;
@@ -65,8 +66,9 @@ public class ServerInfoCache {
         this.authenticated = authenticated;
     }
 
-    public synchronized void setInfo(@Nullable String name, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
+    public synchronized void setInfo(@Nullable String name, int build, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
         if (Objects.equals(name, this.name)
+                && build == this.build
                 && status == this.status
                 && Objects.equals(message, this.message)
                 && Objects.equals(gameState, this.gameState)
@@ -75,6 +77,7 @@ public class ServerInfoCache {
         LOGGER.info("New server info for {}: \"{}\" {} {}", serverNameForLog(name), status, message == null ? null : '"' + message + '"', gameState);
 
         this.name = name;
+        this.build = build;
         this.status = status;
         this.message = message;
         this.gameState = gameState;
@@ -130,6 +133,9 @@ public class ServerInfoCache {
         String subtext = "-# Last updated " + lastUpdated;
         if (ping != null) {
             subtext += String.format(" (%,d ms)", ping.toMillis());
+        }
+        if (build > 0) {
+            subtext += " – " + buildLink("Build ", build);
         }
         components.add(TextDisplay.of(subtext));
 
