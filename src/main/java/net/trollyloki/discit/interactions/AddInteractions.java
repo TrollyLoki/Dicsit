@@ -144,9 +144,9 @@ public final class AddInteractions {
 
                 event.getHook().editOriginalComponents(
                         TextDisplay.of("The server you just added is currently unclaimed"),
-                        TextDisplay.of("Would you like to claim it?"),
+                        TextDisplay.of("Would you like to claim it now?"),
                         ActionRow.of(
-                                Button.success(buildId(CLAIM_BUTTON_ID, serverId), "Yes"),
+                                Button.success(buildId(CLAIM_BUTTON_ID, serverId, true), "Yes"),
                                 Button.danger(CANCEL_BUTTON_ID, "No")
                         )
                 ).useComponentsV2().queue();
@@ -158,12 +158,12 @@ public final class AddInteractions {
         }));
     }
 
-    public static void onClaimButton(ButtonInteractionEvent event, String serverIdString) {
+    public static void onClaimButton(ButtonInteractionEvent event, String serverIdString, boolean edit) {
         Server server = getServerIfAdmin(event, serverIdString);
         if (server == null)
             return;
 
-        event.replyModal(Modal.create(buildId(CLAIM_MODAL_ID, serverIdString), "Claim Server").addComponents(
+        event.replyModal(Modal.create(buildId(CLAIM_MODAL_ID, serverIdString, edit), "Claim Server").addComponents(
                 Label.of("Server Name", serverNameInput("name").build()),
                 Label.of("Admin Password", TextInput.of("password1", TextInputStyle.SHORT)),
                 Label.of("Repeat Admin Password", TextInput.of("password2", TextInputStyle.SHORT)),
@@ -172,7 +172,7 @@ public final class AddInteractions {
         ).build()).queue();
     }
 
-    public static void onClaimModal(ModalInteractionEvent event, String serverIdString) {
+    public static void onClaimModal(ModalInteractionEvent event, String serverIdString, boolean edit) {
         Server server = getServerIfAdmin(event, serverIdString);
         if (server == null)
             return;
@@ -202,7 +202,8 @@ public final class AddInteractions {
 
         ModalMapping authenticate = event.getValue("authenticate");
 
-        event.deferEdit().queue();
+        if (edit) event.deferEdit().queue();
+        else event.deferReply(true).queue();
 
         LOGGER.info("Claiming {}", serverNameForLog(name.getAsString()));
 
@@ -228,7 +229,14 @@ public final class AddInteractions {
         }).thenApplyAsync(withMDC(_ -> {
             logActionWithServer(event, "claimed", name.getAsString());
             return "Successfully claimed " + inlineServerDisplayName(name.getAsString());
-        })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
+        })).exceptionally(withMDC(throwable -> {
+            // Thrown exceptions are always wrapped in a CompletionException
+            Throwable cause = throwable.getCause();
+            if (cause != null && cause.getCause() instanceof PasswordlessLoginNotPossibleException) {
+                return inlineServerDisplayName(server.getName()) + " is already claimed";
+            }
+            return InteractionUtils.exceptionMessage(throwable);
+        })).thenAcceptAsync(withMDC(message -> {
             event.getHook().editOriginalComponents(TextDisplay.of(message)).useComponentsV2().queue();
         }));
     }

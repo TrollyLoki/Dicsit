@@ -27,6 +27,7 @@ import static net.trollyloki.discit.InteractionListener.DASHBOARD_REFRESH_BUTTON
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.interactions.AddInteractions.CLAIM_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
 import static net.trollyloki.discit.interactions.CreativeModeInteractions.CREATIVE_MODE_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
@@ -151,7 +152,10 @@ public class ServerInfoCache {
             }
 
             if (!authenticated) {
-                primaryRow.add(Button.primary(buildId(AUTHENTICATE_BUTTON_ID, serverId), "Authenticate"));
+                if (name == null || name.isEmpty()) {
+                    primaryRow.add(Button.primary(buildId(CLAIM_BUTTON_ID, serverId, false), "Claim"));
+                }
+                primaryRow.add(Button.secondary(buildId(AUTHENTICATE_BUTTON_ID, serverId), "Authenticate"));
             } else {
                 if (playing) {
                     primaryRow.add(Button.primary(buildId(RELOAD_BUTTON_ID, serverId), "Reload Session"));

@@ -123,7 +123,7 @@ public class InteractionListener extends ListenerAdapter {
                 case UNSET_ALERT_ROLE_BUTTON_ID -> onUnsetAlertRoleButton(event);
                 case ADD_RETRY_BUTTON_ID -> onRetryButton(event, id[1], Integer.parseInt(id[2]));
                 case ADD_CONFIRM_BUTTON_ID -> onAddConfirmButton(event, id[1], Integer.parseInt(id[2]), id[3]);
-                case CLAIM_BUTTON_ID -> onClaimButton(event, id[1]);
+                case CLAIM_BUTTON_ID -> onClaimButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case AUTHENTICATE_BUTTON_ID -> onAuthenticateButton(event, id[1], false);
                 case LIST_AUTHENTICATE_BUTTON_ID -> onAuthenticateButton(event, id[1], true);
                 case LIST_DEAUTHENTICATE_BUTTON_ID -> onDeauthenticateButtonOnList(event, id[1]);
@@ -180,7 +180,7 @@ public class InteractionListener extends ListenerAdapter {
         try {
             String[] id = splitId(event.getModalId());
             switch (id[0]) {
-                case CLAIM_MODAL_ID -> onClaimModal(event, id[1]);
+                case CLAIM_MODAL_ID -> onClaimModal(event, id[1], Boolean.parseBoolean(id[2]));
                 case AUTHENTICATE_MODAL_ID -> onAuthenticateModal(event, id[1], Boolean.parseBoolean(id[2]));
                 case RELOAD_MODAL_ID -> onReloadModal(event);
                 case SAVE_MODAL_ID -> onSaveModal(event, id.length > 1 ? id[1] : null);
