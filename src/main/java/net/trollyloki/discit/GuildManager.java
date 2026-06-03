@@ -287,6 +287,22 @@ public class GuildManager {
         save();
     }
 
+    public boolean updateServerFingerprint(UUID serverId, String newFingerprint) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not update fingerprint for unknown server {}", serverId);
+            return false;
+        }
+
+        server.setToken(null); // clear credentials if fingerprint changes for security
+        server.setFingerprint(newFingerprint);
+        save();
+
+        updateAuthenticated(serverId, false);
+
+        return true;
+    }
+
     public boolean setServerToken(UUID serverId, @Nullable String token) {
         ServerData server = data.getServers().get(serverId);
         if (server == null) {
@@ -297,10 +313,14 @@ public class GuildManager {
         server.setToken(token);
         save();
 
-        ServerMonitor monitor = monitors.get(serverId);
-        if (monitor != null) monitor.getInfoCache().setAuthenticated(server.hasToken());
+        updateAuthenticated(serverId, server.hasToken());
 
         return true;
+    }
+
+    private void updateAuthenticated(UUID serverId, boolean authenticated) {
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setAuthenticated(authenticated);
     }
 
     public boolean setAllowReloading(UUID serverId, boolean allowReloading) {

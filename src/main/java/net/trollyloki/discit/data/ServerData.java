@@ -19,9 +19,9 @@ public class ServerData implements Server {
 
     private final String host;
     private final int port;
-    private final String fingerprint;
 
     private final TrustManager trustManager;
+    private String fingerprint;
 
     private @Nullable String name;
     private @Nullable String token;
@@ -63,6 +63,10 @@ public class ServerData implements Server {
     @Override
     public String getFingerprint() {
         return fingerprint;
+    }
+
+    public void setFingerprint(String fingerprint) {
+        this.fingerprint = fingerprint;
     }
 
     @Override

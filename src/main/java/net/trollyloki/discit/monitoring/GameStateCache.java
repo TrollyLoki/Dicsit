@@ -132,7 +132,7 @@ public class GameStateCache {
         } catch (Exception e) {
             LOGGER.warn("Failed to query game state of {}", serverNameForLog(server.getName()), e);
 
-            set(null, null);
+            set(null, "Failed to query game state");
 
         }
 

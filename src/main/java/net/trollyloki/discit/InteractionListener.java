@@ -127,6 +127,9 @@ public class InteractionListener extends ListenerAdapter {
                 case AUTHENTICATE_BUTTON_ID -> onAuthenticateButton(event, id[1], false);
                 case LIST_AUTHENTICATE_BUTTON_ID -> onAuthenticateButton(event, id[1], true);
                 case LIST_DEAUTHENTICATE_BUTTON_ID -> onDeauthenticateButtonOnList(event, id[1]);
+                case UPDATE_FINGERPRINT_BUTTON_ID -> onUpdateFingerprintButton(event, id[1]);
+                case CANCEL_FINGERPRINT_UPDATE_BUTTON_ID -> onCancelFingerprintUpdateButton(event, id[1]);
+                case CONFIRM_FINGERPRINT_BUTTON_ID -> onConfirmFingerprintButton(event, id[1], id[2]);
                 case LIST_REMOVE_BUTTON_ID -> onListRemoveButton(event, id[1]);
                 case UNSET_SERVER_CHANNEL_BUTTON_ID -> onUnsetServerChannelButton(event, id[1]);
                 case ALLOW_RELOADING_BUTTON_ID -> onAllowReloadingButton(event, id[1], Boolean.parseBoolean(id[2]));

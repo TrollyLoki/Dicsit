@@ -26,6 +26,7 @@ import net.trollyloki.discit.Discit;
 import net.trollyloki.discit.GuildManager;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
+import net.trollyloki.jicsit.server.https.CertificateUtils;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
@@ -59,6 +60,9 @@ public final class ListInteractions {
             LIST_AUTHENTICATE_BUTTON_ID = "list-authenticate",
             AUTHENTICATE_MODAL_ID = "authenticate",
             LIST_DEAUTHENTICATE_BUTTON_ID = "list-deauthenticate",
+            UPDATE_FINGERPRINT_BUTTON_ID = "update-fingerprint",
+            CANCEL_FINGERPRINT_UPDATE_BUTTON_ID = "cancel-fingerprint",
+            CONFIRM_FINGERPRINT_BUTTON_ID = "fingerprint",
             LIST_REMOVE_BUTTON_ID = "list-remove",
             OFFLINE_ALERT_DELAY_SELECT_ID = "server-offline-alert-delay",
             SERVER_CHANNEL_SELECT_ID = "server-channel",
@@ -71,6 +75,7 @@ public final class ListInteractions {
         if (server.hasToken()) {
             buttons.add(Button.secondary(buildId(LIST_DEAUTHENTICATE_BUTTON_ID, serverIdString), "Deauthenticate"));
         }
+        buttons.add(Button.secondary(buildId(UPDATE_FINGERPRINT_BUTTON_ID, serverIdString), "Update Fingerprint"));
         buttons.add(Button.danger(buildId(LIST_REMOVE_BUTTON_ID, serverIdString), "Remove"));
 
         GuildManager guildManager = getGuildManager(interaction);
@@ -255,6 +260,72 @@ public final class ListInteractions {
 
         event.getHook().sendMessage("Authentication removed").setEphemeral(true).queue();
         logActionWithServer(event, "removed the authentication token for", server.getName());
+    }
+
+    public static void onUpdateFingerprintButton(ButtonInteractionEvent event, String serverIdString) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        event.deferEdit().queue();
+
+        CompletableFuture.runAsync(withMDC(() -> {
+            Button cancelButton = Button.secondary(buildId(CANCEL_FINGERPRINT_UPDATE_BUTTON_ID, serverIdString), "Cancel");
+            try {
+
+                String fingerprint = CertificateUtils.getServerFingerprint(server.getHost(), server.getPort());
+
+                if (fingerprint.equals(server.getFingerprint())) {
+                    event.getHook().editOriginalComponents(
+                            TextDisplay.of("Fingerprint of " + inlineServerDisplayName(server.getName()) + " is unchanged"),
+                            ActionRow.of(cancelButton)
+                    ).useComponentsV2().queue();
+                    return;
+                }
+
+                event.getHook().editOriginalComponents(
+                        TextDisplay.of("Fingerprint of " + inlineServerDisplayName(server.getName()) + " has changed"),
+                        TextDisplay.of("### New Fingerprint\n```" + fingerprint + "```"),
+                        ActionRow.of(
+                                Button.success(buildId(CONFIRM_FINGERPRINT_BUTTON_ID, serverIdString, fingerprint), "Confirm"),
+                                cancelButton
+                        )
+                ).useComponentsV2().queue();
+
+            } catch (Exception e) {
+                event.getHook().editOriginalComponents(
+                        TextDisplay.of("Could not connect to " + inlineServerDisplayName(server.getName())),
+                        ActionRow.of(
+                                Button.primary(buildId(UPDATE_FINGERPRINT_BUTTON_ID, serverIdString), "Retry"),
+                                cancelButton
+                        )
+                ).useComponentsV2().queue();
+            }
+        }));
+    }
+
+    public static void onCancelFingerprintUpdateButton(ButtonInteractionEvent event, String serverIdString) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
+    }
+
+    public static void onConfirmFingerprintButton(ButtonInteractionEvent event, String serverIdString, String newFingerprint) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        if (!getGuildManager(event).updateServerFingerprint(UUID.fromString(serverIdString), newFingerprint)) {
+            event.reply("Failed to update fingerprint").setEphemeral(true).queue();
+            return;
+        }
+
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
+
+        event.getHook().sendMessage("Fingerprint updated").setEphemeral(true).queue();
+        logActionWithServer(event, "updated the fingerprint of", server.getName());
     }
 
     public static void onOfflineAlertDelaySelect(StringSelectInteractionEvent event, String serverIdString) {
