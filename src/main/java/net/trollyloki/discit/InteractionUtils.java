@@ -390,6 +390,38 @@ public final class InteractionUtils {
         }
     }
 
+    public static CompletableFuture<@Nullable String> checkForPlayersAsyncWithMDC(List<Server> servers) {
+        List<CompletableFuture<Integer>> playerCountFutures = servers.stream().map(server -> {
+            LOGGER.info("Checking if players are connected to {}", serverNameForLog(server.getName()));
+
+            return requestAsyncWithMDC(server, "check if players are connected to", httpsApi -> {
+                return httpsApi.queryServerState().connectedPlayerCount();
+            });
+        }).toList();
+
+        return CompletableFuture.allOf(playerCountFutures.toArray(CompletableFuture[]::new)).handleAsync(withMDC((_, throwable) -> {
+            if (throwable != null) {
+                return "Failed to check if players are connected";
+            }
+
+            int totalPlayerCount = playerCountFutures.stream().map(CompletableFuture::join).reduce(Integer::sum).orElse(0);
+            if (totalPlayerCount == 0) {
+                return null;
+            }
+
+            String message;
+            if (totalPlayerCount == 1) message = "There is currently 1 player";
+            else message = "There are currently " + totalPlayerCount + " players";
+
+            message += " connected to ";
+
+            if (servers.size() == 1) message += inlineServerDisplayName(servers.getFirst().getName());
+            else message += "those " + servers.size() + " servers";
+
+            return message;
+        }));
+    }
+
     private static class GameNotRunningException extends IllegalStateException {
         private GameNotRunningException(String message) {
             super(message);

@@ -46,6 +46,15 @@ public class InteractionDataCache<K, D> {
         LOGGER.info("Cache contains {} entries after put", map.size());
     }
 
+    public synchronized boolean putIfAbsent(K key, D data) {
+        if (map.containsKey(key)) {
+            return false;
+        } else {
+            put(key, data);
+            return true;
+        }
+    }
+
     public synchronized @Nullable D pop(K key) {
         CachedData<D> cachedData = map.remove(key);
         if (cachedData == null) return null;

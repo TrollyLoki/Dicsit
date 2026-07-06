@@ -12,7 +12,7 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
-import net.trollyloki.discit.interactions.cache.ServerSelectionCache;
+import net.trollyloki.discit.interactions.cache.AutoKeyedCache;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
@@ -44,7 +43,7 @@ public final class ReloadInteractions {
             RELOAD_CONFIRM_BUTTON_ID = "reload-confirm",
             RELOAD_BUTTON_ID = "reload";
 
-    private static final ServerSelectionCache SERVER_SELECTION_CACHE = new ServerSelectionCache();
+    private static final AutoKeyedCache<List<String>> SERVER_SELECTION_CACHE = new AutoKeyedCache<>();
 
     public static void onReloadCommand(SlashCommandInteractionEvent event) {
         Map.Entry<UUID, Server> channelServer = getGuildManager(event).getChannelServer(event.getChannelId());
@@ -87,31 +86,8 @@ public final class ReloadInteractions {
     private static void confirmReload(IReplyCallback callback, List<String> serverIdStrings, List<Server> servers) {
         callback.deferReply(isDashboard(callback)).queue();
 
-        List<CompletableFuture<Integer>> playerCountFutures = servers.stream().map(server -> {
-            LOGGER.info("Checking if players are connected to {} before reloading", serverNameForLog(server.getName()));
-
-            return requestAsyncWithMDC(server, "check if players are connected to", httpsApi -> {
-                return httpsApi.queryServerState().connectedPlayerCount();
-            });
-        }).toList();
-
-        CompletableFuture.allOf(playerCountFutures.toArray(CompletableFuture[]::new)).whenCompleteAsync(withMDC((_, throwable) -> {
-            int totalPlayerCount = -1;
-            String message;
-            if (throwable != null) {
-                message = "Failed to check if players are connected";
-            } else {
-                totalPlayerCount = playerCountFutures.stream().map(CompletableFuture::join).reduce(Integer::sum).orElse(0);
-                if (totalPlayerCount == 1) message = "There is currently 1 player";
-                else message = "There are currently " + totalPlayerCount + " players";
-
-                message += " connected to ";
-
-                if (servers.size() == 1) message += inlineServerDisplayName(servers.getFirst().getName());
-                else message += "those " + servers.size() + " servers";
-            }
-
-            if (totalPlayerCount == 0) {
+        checkForPlayersAsyncWithMDC(servers).thenAcceptAsync(withMDC(message -> {
+            if (message == null) {
                 // Skip confirmation if no players are connected
                 reload(callback, servers, false);
                 return;
