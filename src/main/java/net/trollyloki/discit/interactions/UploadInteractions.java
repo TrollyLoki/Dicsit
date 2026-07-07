@@ -1,7 +1,9 @@
 package net.trollyloki.discit.interactions;
 
 import net.dv8tion.jda.api.components.ModalTopLevelComponent;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.attachmentupload.AttachmentUpload;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.label.LabelChildComponent;
 import net.dv8tion.jda.api.components.selections.SelectMenu;
@@ -12,6 +14,7 @@ import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.interactions.callbacks.IDeferrableCallback;
 import net.dv8tion.jda.api.interactions.callbacks.IModalCallback;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
@@ -19,7 +22,8 @@ import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
-import net.trollyloki.discit.interactions.cache.AttachmentCache;
+import net.trollyloki.discit.interactions.cache.AutoKeyedCache;
+import net.trollyloki.discit.interactions.cache.ModalOptionCache;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -56,16 +60,32 @@ public final class UploadInteractions {
             UPLOAD_CONTEXT_COMMAND_NAME = "Upload save file",
             UPLOAD_COMMAND_NAME = "upload",
             UPLOAD_BUTTON_ID = "upload",
-            UPLOAD_MODAL_ID = "upload";
+            UPLOAD_MODAL_ID = "upload",
+            UPLOAD_CANCEL_BUTTON_ID = "upload-cancel",
+            UPLOAD_CONFIRM_BUTTON_ID = "upload-confirm";
 
-    private static final AttachmentCache ATTACHMENT_CACHE = new AttachmentCache();
+    private record AttachmentInfo(String url, String fileName) {
+        AttachmentInfo(Message.Attachment attachment) {
+            this(attachment.getUrl(), attachment.getFileName());
+        }
+
+        NamedAttachmentProxy getProxy() {
+            return new NamedAttachmentProxy(url, fileName);
+        }
+    }
+
+    private record UploadInfo(AttachmentInfo attachmentInfo, List<String> serverIdStrings, boolean loadCreative) {
+    }
+
+    private static final ModalOptionCache<AttachmentInfo> ATTACHMENT_CACHE = new ModalOptionCache<>();
+    private static final AutoKeyedCache<UploadInfo> UPLOAD_INFO_CACHE = new AutoKeyedCache<>();
 
     public static void onUploadFromMessage(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = findMessageAttachments(event);
         if (attachments == null)
             return;
 
-        ATTACHMENT_CACHE.put(event.getUser(), attachments);
+        ATTACHMENT_CACHE.put(event.getUser(), attachments.stream().map(AttachmentInfo::new).toList());
 
         onUploadHelper(event, event, customId -> {
             StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
@@ -125,14 +145,11 @@ public final class UploadInteractions {
     }
 
     public static void onUploadModal(ModalInteractionEvent event, @Nullable String fixedServerIdString) {
-        List<Server> servers;
+        List<String> serverIdStrings;
         if (fixedServerIdString != null) {
 
-            Server server = getServerIfAdmin(event, fixedServerIdString);
-            if (server == null)
-                return;
-
-            servers = Collections.singletonList(server);
+            //noinspection NullableProblems: fixedServerIdString is non-null here
+            serverIdStrings = Collections.singletonList(fixedServerIdString);
 
         } else {
 
@@ -141,12 +158,13 @@ public final class UploadInteractions {
                 event.reply("Please select servers").setEphemeral(true).queue();
                 return;
             }
-
-            servers = getServersIfAdmin(event, serverIds.getAsStringList());
-            if (servers == null)
-                return;
+            serverIdStrings = serverIds.getAsStringList();
 
         }
+
+        List<Server> servers = getServersIfAdmin(event, serverIdStrings);
+        if (servers == null)
+            return;
 
         ModalMapping save = event.getValue("save");
         if (save == null) {
@@ -154,12 +172,12 @@ public final class UploadInteractions {
             return;
         }
 
-        NamedAttachmentProxy attachment;
+        AttachmentInfo attachmentInfo;
         switch (save.getType()) {
-            case FILE_UPLOAD -> attachment = save.getAsAttachmentList().getFirst().getProxy();
+            case FILE_UPLOAD -> attachmentInfo = new AttachmentInfo(save.getAsAttachmentList().getFirst());
             case STRING_SELECT -> {
-                attachment = ATTACHMENT_CACHE.pop(event.getUser(), Integer.parseInt(save.getAsStringList().getFirst()));
-                if (attachment == null) {
+                attachmentInfo = ATTACHMENT_CACHE.pop(event.getUser(), Integer.parseInt(save.getAsStringList().getFirst()));
+                if (attachmentInfo == null) {
                     event.reply("Attachment context expired, please try again").setEphemeral(true).queue();
                     return;
                 }
@@ -180,28 +198,86 @@ public final class UploadInteractions {
         boolean load = actionString.startsWith("load");
         boolean loadCreative = actionString.equals("load-creative");
 
-        String file = attachment.getUrl();
-        String saveName = SaveFileReader.saveNameOf(attachment.getFileName());
-
         event.deferReply(isDashboard(event)).queue();
 
+        if (!load) {
+            // Skip player check when just uploading
+            uploadSave(event, attachmentInfo, servers, false, false);
+            return;
+        }
+
+        checkForPlayersAsyncWithMDC(servers).thenAcceptAsync(withMDC(message -> {
+            if (message == null) {
+                // Skip confirmation if no players are connected
+                uploadSave(event, attachmentInfo, servers, true, loadCreative);
+                return;
+            }
+
+            UUID key = UPLOAD_INFO_CACHE.put(new UploadInfo(attachmentInfo, serverIdStrings, loadCreative));
+            event.getHook().editOriginal(message).setComponents(ActionRow.of(
+                    Button.primary(buildId(UPLOAD_CONFIRM_BUTTON_ID, event.getUser().getId(), key), "Load Anyway"),
+                    Button.secondary(buildId(UPLOAD_CANCEL_BUTTON_ID, event.getUser().getId(), key), "Cancel")
+            )).queue();
+        }));
+    }
+
+    public static void onUploadCancelButton(ButtonInteractionEvent event, String userId, String keyString) {
+        if (!event.getUser().getId().equals(userId)) {
+            // Ignore
+            event.deferEdit().queue();
+            return;
+        }
+
+        UPLOAD_INFO_CACHE.pop(UUID.fromString(keyString));
+
+        event.deferEdit().queue();
+        event.getHook().deleteOriginal().queue();
+    }
+
+    public static void onUploadConfirmButton(ButtonInteractionEvent event, String userId, String keyString) {
+        if (!event.getUser().getId().equals(userId)) {
+            // Ignore
+            event.deferEdit().queue();
+            return;
+        }
+
+        UploadInfo uploadInfo = UPLOAD_INFO_CACHE.pop(UUID.fromString(keyString));
+        if (uploadInfo == null) {
+            event.deferEdit().queue();
+            event.getHook().deleteOriginal().queue();
+            event.getHook().sendMessage("Context expired, please try again").setEphemeral(true).queue();
+            return;
+        }
+
+        List<Server> servers = getServersIfAdmin(event, uploadInfo.serverIdStrings);
+        if (servers == null)
+            return;
+
+        event.deferEdit().queue();
+        uploadSave(event, uploadInfo.attachmentInfo, servers, true, uploadInfo.loadCreative);
+    }
+
+    private static void uploadSave(IDeferrableCallback callback, AttachmentInfo attachmentInfo, List<Server> servers, boolean load, boolean loadCreative) {
+        NamedAttachmentProxy attachment = attachmentInfo.getProxy();
+        String saveName = SaveFileReader.saveNameOf(attachment.getFileName());
         attachment.download().thenAcceptAsync(withMDC(downloadStream -> {
 
             List<String> messageLines = Collections.synchronizedList(servers.stream()
-                    .map(server -> "Uploading " + file + " to " + inlineServerDisplayName(server.getName()) + "...")
+                    .map(server -> "Uploading " + attachment.getUrl() + " to " + inlineServerDisplayName(server.getName()) + "...")
                     .collect(Collectors.toList())
             );
             // No need to synchronize here, the list won't be changing yet
-            event.getHook().editOriginal(String.join("\n", messageLines)).queue();
+            callback.getHook().editOriginal(String.join("\n", messageLines))
+                    .setComponents(Collections.emptySet()).queue();
 
             InputStream[] uploadStreams;
             try {
                 uploadStreams = splitInputStream(downloadStream, servers.size(), e -> {
-                    event.getHook().editOriginal("Failed to transfer data").queue();
+                    callback.getHook().editOriginal("Failed to transfer data").queue();
                     LOGGER.error("Error while streaming split save data", e);
                 });
             } catch (Exception e) {
-                event.getHook().editOriginal("Failed to start data transfer").queue();
+                callback.getHook().editOriginal("Failed to start data transfer").queue();
                 LOGGER.error("Failed to split save data", e);
                 return;
             }
@@ -212,25 +288,26 @@ public final class UploadInteractions {
 
                 LOGGER.info("Uploading save \"{}\" to {}", saveName, serverNameForLog(server.getName()));
 
-                requestAsyncWithMDC(server, "upload " + file + " to", httpsApi -> {
+                requestAsyncWithMDC(server, "upload " + attachment.getUrl() + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {
                         httpsApi.uploadSave(uploadStream, saveName, load, loadCreative);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                 }).thenApplyAsync(withMDC(_ -> {
-                    String result = load ? "loaded " + file + " on" : "uploaded " + file + " to";
-                    logActionWithServer(event, result, server.getName());
+                    String result = load ? "loaded " + attachment.getUrl() + " on" : "uploaded " + attachment.getUrl() + " to";
+                    logActionWithServer(callback, result, server.getName());
                     return "Successfully " + result + " " + inlineServerDisplayName(server.getName());
                 })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                     messageLines.set(index, message);
                     synchronized (messageLines) {
-                        event.getHook().editOriginal(String.join("\n", messageLines)).queue();
+                        callback.getHook().editOriginal(String.join("\n", messageLines)).queue();
                     }
                 }));
             }
         })).exceptionallyAsync(withMDC(throwable -> {
-            event.getHook().editOriginal("Failed to retrieve attachment").queue();
+            callback.getHook().editOriginal("Failed to retrieve attachment")
+                    .setComponents(Collections.emptySet()).queue();
             LOGGER.error("Failed to retrieve attachment", throwable);
             return null;
         }));
