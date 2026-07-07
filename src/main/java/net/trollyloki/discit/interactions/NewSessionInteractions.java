@@ -1,5 +1,7 @@
 package net.trollyloki.discit.interactions;
 
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
@@ -7,10 +9,12 @@ import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.interactions.callbacks.IDeferrableCallback;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
+import net.trollyloki.discit.interactions.cache.AutoKeyedCache;
 import net.trollyloki.jicsit.server.https.CreativeModeSettings;
 import net.trollyloki.jicsit.server.https.NewGameData;
 import org.jspecify.annotations.NullMarked;
@@ -18,10 +22,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static net.trollyloki.discit.FormattingUtils.escapeAll;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
@@ -39,7 +40,14 @@ public final class NewSessionInteractions {
 
     public static final String
             NEW_SESSION_BUTTON_ID = "new-session",
-            NEW_SESSION_MODAL_ID = "new-session";
+            NEW_SESSION_MODAL_ID = "new-session",
+            NEW_SESSION_CANCEL_BUTTON_ID = "new-session-cancel",
+            NEW_SESSION_CONFIRM_BUTTON_ID = "new-session-confirm";
+
+    private record ServerNewGameData(String serverIdString, NewGameData newGameData) {
+    }
+
+    private static final AutoKeyedCache<ServerNewGameData> NEW_GAME_DATA_CACHE = new AutoKeyedCache<>();
 
     public static void onNewSessionButton(ButtonInteractionEvent event, String serverIdString) {
         Server server = getServerIfAdmin(event, serverIdString);
@@ -116,15 +124,70 @@ public final class NewSessionInteractions {
 
         event.deferReply(isDashboard(event)).queue();
 
+        checkForPlayersAsyncWithMDC(Collections.singletonList(server)).thenAcceptAsync(withMDC(message -> {
+            if (message == null) {
+                // Skip confirmation if no players are connected
+                createNewSession(event, server, newGameData);
+                return;
+            }
+
+            UUID key = NEW_GAME_DATA_CACHE.put(new ServerNewGameData(serverIdString, newGameData));
+            event.getHook().editOriginal(message).setComponents(ActionRow.of(
+                    Button.primary(buildId(NEW_SESSION_CONFIRM_BUTTON_ID, event.getUser().getId(), key), "Create New Session Anyway"),
+                    Button.secondary(buildId(NEW_SESSION_CANCEL_BUTTON_ID, event.getUser().getId(), key), "Cancel")
+            )).queue();
+        }));
+    }
+
+    public static void onNewSessionCancelButton(ButtonInteractionEvent event, String userId, String keyString) {
+        if (!event.getUser().getId().equals(userId)) {
+            // Ignore
+            event.deferEdit().queue();
+            return;
+        }
+
+        NEW_GAME_DATA_CACHE.pop(UUID.fromString(keyString));
+
+        event.deferEdit().queue();
+        event.getHook().deleteOriginal().queue();
+    }
+
+    public static void onNewSessionConfirmButton(ButtonInteractionEvent event, String userId, String keyString) {
+        if (!event.getUser().getId().equals(userId)) {
+            // Ignore
+            event.deferEdit().queue();
+            return;
+        }
+
+        ServerNewGameData serverNewGameData = NEW_GAME_DATA_CACHE.pop(UUID.fromString(keyString));
+        if (serverNewGameData == null) {
+            event.deferEdit().queue();
+            event.getHook().deleteOriginal().queue();
+            event.getHook().sendMessage("Context expired, please try again").setEphemeral(true).queue();
+            return;
+        }
+
+        Server server = getServerIfAdmin(event, serverNewGameData.serverIdString);
+        if (server == null)
+            return;
+
+        event.deferEdit().queue();
+        createNewSession(event, server, serverNewGameData.newGameData);
+    }
+
+    private static void createNewSession(IDeferrableCallback callback, Server server, NewGameData newGameData) {
+        callback.getHook().editOriginal("Creating new session on " + inlineServerDisplayName(server.getName()) + "...")
+                .setComponents(Collections.emptySet()).queue();
+
         LOGGER.info("Creating new session on {}: {}", serverNameForLog(server.getName()), newGameData);
 
         requestAsyncWithMDC(server, "create new session on", httpsApi -> {
             httpsApi.createNewSession(newGameData);
         }).thenApplyAsync(withMDC(_ -> {
-            logActionWithServer(event, "created new session " + escapeAll(newGameData.sessionName()) + " on", server.getName());
+            logActionWithServer(callback, "created new session " + escapeAll(newGameData.sessionName()) + " on", server.getName());
             return "Successfully created new session on " + inlineServerDisplayName(server.getName());
         })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
-            event.getHook().editOriginal(message).queue();
+            callback.getHook().editOriginal(message).queue();
         }));
     }
 

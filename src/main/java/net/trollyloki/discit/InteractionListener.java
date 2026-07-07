@@ -140,6 +140,8 @@ public class InteractionListener extends ListenerAdapter {
                 case SAVE_BUTTON_ID -> onSaveButton(event, id[1]);
                 case UPLOAD_BUTTON_ID -> onUploadButton(event, id[1]);
                 case NEW_SESSION_BUTTON_ID -> onNewSessionButton(event, id[1]);
+                case NEW_SESSION_CANCEL_BUTTON_ID -> onNewSessionCancelButton(event, id[1], id[2]);
+                case NEW_SESSION_CONFIRM_BUTTON_ID -> onNewSessionConfirmButton(event, id[1], id[2]);
                 case RENAME_BUTTON_ID -> onRenameButton(event, id[1]);
                 case SERVER_OPTIONS_BUTTON_ID -> onServerOptionsButton(event, id[1]);
                 case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionButton(event, id[1], id[2], id[3]);
