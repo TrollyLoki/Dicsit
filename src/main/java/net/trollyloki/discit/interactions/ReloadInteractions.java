@@ -89,7 +89,7 @@ public final class ReloadInteractions {
         checkForPlayersAsyncWithMDC(servers).thenAcceptAsync(withMDC(message -> {
             if (message == null) {
                 // Skip confirmation if no players are connected
-                reload(callback, servers, false);
+                reload(callback, servers);
                 return;
             }
 
@@ -134,7 +134,7 @@ public final class ReloadInteractions {
             Map.Entry<UUID, Server> channelServer = getGuildManager(event).getChannelServer(event.getChannelId());
             if (channelServer != null && channelServer.getValue().isAllowReloading() && channelServer.getKey().toString().equals(serverIdStrings.getFirst())) {
                 event.deferEdit().queue();
-                reload(event, Collections.singletonList(channelServer.getValue()), false);
+                reload(event, Collections.singletonList(channelServer.getValue()));
                 return;
             }
         }
@@ -144,7 +144,7 @@ public final class ReloadInteractions {
             return;
 
         event.deferEdit().queue();
-        reload(event, servers, false);
+        reload(event, servers);
     }
 
     public static void onReloadButton(ButtonInteractionEvent event, String serverIdString) {
@@ -152,21 +152,17 @@ public final class ReloadInteractions {
         if (server == null)
             return;
 
-        reload(event, Collections.singletonList(server), true);
+        confirmReload(event, Collections.singletonList(serverIdString), Collections.singletonList(server));
     }
 
-    private static void reload(IReplyCallback callback, List<Server> servers, boolean reply) {
+    private static void reload(IReplyCallback callback, List<Server> servers) {
         List<String> messageLines = Collections.synchronizedList(servers.stream()
                 .map(server -> "Reloading " + inlineServerDisplayName(server.getName()) + "...")
                 .collect(Collectors.toList())
         );
         // No need to synchronize here, the list won't be changing yet
-        String initialMessage = String.join("\n", messageLines);
-        if (reply) {
-            callback.reply(initialMessage).setEphemeral(isDashboard(callback)).queue();
-        } else {
-            callback.getHook().editOriginal(initialMessage).setComponents(Collections.emptySet()).queue();
-        }
+        callback.getHook().editOriginal(String.join("\n", messageLines))
+                .setComponents(Collections.emptySet()).queue();
 
         for (int i = 0; i < servers.size(); i++) {
             final int index = i;
