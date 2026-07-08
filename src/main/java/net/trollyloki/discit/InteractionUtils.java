@@ -436,6 +436,15 @@ public final class InteractionUtils {
         httpsApi.save(saveName);
     }
 
+    public static CompletableFuture<@Nullable Void> saveAndShutdownWithMDC(Server server) {
+        return requestAsyncWithMDC(server, "save and shut down", httpsApi -> {
+            if (httpsApi.queryServerState().isGameRunning()) {
+                httpsApi.save(Discit.RESTART_SAVE_NAME);
+            }
+            httpsApi.shutdownServer();
+        });
+    }
+
     public static CompletableFuture<Boolean> reloadAsyncWithMDC(Server server) {
         String saveName = Discit.RELOAD_SAVE_NAME;
         return requestAsyncWithMDC(server, "reload", httpsApi -> {
@@ -467,16 +476,6 @@ public final class InteractionUtils {
             httpsApi.loadSave(saveName, false);
             return true;
         });
-    }
-
-    public static CompletableFuture<String> reloadHelper(Interaction interaction, Server server) {
-        return reloadAsyncWithMDC(server).thenApplyAsync(withMDC(verified -> {
-            if (!verified) {
-                return "Reload verification for " + inlineServerDisplayName(server.getName()) + " failed, please try again";
-            }
-            logActionWithServer(interaction, "reloaded", server.getName());
-            return "Successfully reloaded " + inlineServerDisplayName(server.getName());
-        }));
     }
 
     public static CompletableFuture<SaveInfo> saveAsyncWithMDC(Server server, @Nullable String saveName) {

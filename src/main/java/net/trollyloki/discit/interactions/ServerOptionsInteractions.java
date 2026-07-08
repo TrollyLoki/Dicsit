@@ -43,8 +43,7 @@ public final class ServerOptionsInteractions {
     public static final String
             SERVER_OPTIONS_BUTTON_ID = "server-options",
             SET_SERVER_OPTION_COMPONENT_ID = "set-server-option",
-            AUTOLOAD_SESSION_NAME_SELECT_ID = "autoload-session-name",
-            OPTIONS_RELOAD_BUTTON_ID = "options-reload";
+            AUTOLOAD_SESSION_NAME_SELECT_ID = "autoload-session-name";
 
     private static final Emoji RELOAD_EMOJI = Emoji.fromUnicode("🔄");
 
@@ -276,7 +275,10 @@ public final class ServerOptionsInteractions {
         if (!optionsInfo.options.pending().isEmpty()) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
             components.add(TextDisplay.of(RELOAD_EMOJI.getFormatted() + " Some changes require a reload or restart to be applied"));
-            components.add(ActionRow.of(Button.primary(buildId(OPTIONS_RELOAD_BUTTON_ID, serverIdString), "Reload Session")));
+            components.add(ActionRow.of(
+                    Button.primary(buildId(ReloadInteractions.RELOAD_BUTTON_ID, serverIdString), "Reload Session"),
+                    Button.secondary(buildId(ReloadInteractions.RESTART_BUTTON_ID, serverIdString), "Restart Server")
+            ));
         }
 
         return Container.of(components);
@@ -378,22 +380,6 @@ public final class ServerOptionsInteractions {
         })).exceptionallyAsync(withMDC(throwable -> {
             interaction.getHook().sendMessage(InteractionUtils.exceptionMessage(throwable)).setEphemeral(true).queue();
             return null;
-        }));
-    }
-
-    public static void onReloadToApplyServerOptionsButton(ButtonInteractionEvent event, String serverIdString) {
-        Server server = getServerIfAdmin(event, serverIdString);
-        if (server == null)
-            return;
-
-        event.editComponents(TextDisplay.of("Reloading " + inlineServerDisplayName(server.getName()) + "..."))
-                .useComponentsV2().queue();
-
-        LOGGER.info("Reloading {} to apply server options", serverNameForLog(server.getName()));
-
-        reloadHelper(event, server).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
-            event.getHook().editOriginalComponents(TextDisplay.of(message))
-                    .useComponentsV2().queue();
         }));
     }
 

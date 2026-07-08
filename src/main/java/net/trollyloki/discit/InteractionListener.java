@@ -69,7 +69,8 @@ public class InteractionListener extends ListenerAdapter {
                 case SETTINGS_COMMAND_NAME -> onSettingsCommand(event);
                 case ADD_COMMAND_NAME -> onAddCommand(event);
                 case LIST_COMMAND_NAME -> onListCommand(event);
-                case RELOAD_COMMAND_NAME -> onReloadCommand(event);
+                case RELOAD_COMMAND_NAME -> onReloadCommand(event, false);
+                case RESTART_COMMAND_NAME -> onReloadCommand(event, true);
                 case SAVE_COMMAND_NAME -> onSaveCommand(event);
                 case UPLOAD_COMMAND_NAME -> onUploadCommand(event);
                 case BACKUP_COMMAND_NAME -> onBackupCommand(event);
@@ -135,8 +136,10 @@ public class InteractionListener extends ListenerAdapter {
                 case ALLOW_RELOADING_BUTTON_ID -> onAllowReloadingButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case DASHBOARD_REFRESH_BUTTON_ID -> onDashboardRefreshButton(event, id[1]);
                 case RELOAD_CANCEL_BUTTON_ID -> onReloadCancelButton(event, id[1], id[2]);
-                case RELOAD_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, id[1], id[2]);
-                case RELOAD_BUTTON_ID -> onReloadButton(event, id[1]);
+                case RELOAD_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, false, id[1], id[2]);
+                case RESTART_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, true, id[1], id[2]);
+                case RELOAD_BUTTON_ID -> onReloadButton(event, false, id[1]);
+                case RESTART_BUTTON_ID -> onReloadButton(event, true, id[1]);
                 case SAVE_BUTTON_ID -> onSaveButton(event, id[1]);
                 case UPLOAD_BUTTON_ID -> onUploadButton(event, id[1]);
                 case UPLOAD_CANCEL_BUTTON_ID -> onUploadCancelButton(event, id[1], id[2]);
@@ -147,7 +150,6 @@ public class InteractionListener extends ListenerAdapter {
                 case RENAME_BUTTON_ID -> onRenameButton(event, id[1]);
                 case SERVER_OPTIONS_BUTTON_ID -> onServerOptionsButton(event, id[1]);
                 case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionButton(event, id[1], id[2], id[3]);
-                case OPTIONS_RELOAD_BUTTON_ID -> onReloadToApplyServerOptionsButton(event, id[1]);
                 case CREATIVE_MODE_BUTTON_ID -> onCreativeModeButton(event, id[1]);
                 case CREATIVE_ENABLE_BUTTON_ID -> onCreativeModeSettingEnableButton(event, id[1], id[2]);
                 case CHANGE_PASSWORD_BUTTON_ID -> onChangePasswordButton(event, id[1], id[2]);
@@ -186,7 +188,8 @@ public class InteractionListener extends ListenerAdapter {
             switch (id[0]) {
                 case CLAIM_MODAL_ID -> onClaimModal(event, id[1], Boolean.parseBoolean(id[2]));
                 case AUTHENTICATE_MODAL_ID -> onAuthenticateModal(event, id[1], Boolean.parseBoolean(id[2]));
-                case RELOAD_MODAL_ID -> onReloadModal(event);
+                case RELOAD_MODAL_ID -> onReloadModal(event, false);
+                case RESTART_MODAL_ID -> onReloadModal(event, true);
                 case SAVE_MODAL_ID -> onSaveModal(event, id.length > 1 ? id[1] : null);
                 case UPLOAD_MODAL_ID -> onUploadModal(event, id.length > 1 ? id[1] : null);
                 case BACKUP_MODAL_ID -> onBackupModal(event);

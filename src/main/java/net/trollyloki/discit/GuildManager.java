@@ -276,6 +276,15 @@ public class GuildManager {
         monitor.refresh();
     }
 
+    public CompletableFuture<@Nullable Void> waitForServer(UUID serverId) {
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor == null) {
+            throw new IllegalArgumentException("Could not find monitor for server " + serverId);
+        }
+
+        return monitor.waitForResponse();
+    }
+
     public void updateServerName(UUID serverId, @Nullable String name) {
         ServerData server = data.getServers().get(serverId);
         if (server == null) {

@@ -30,6 +30,7 @@ import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.ListInteractions.LIST_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.ReloadInteractions.RELOAD_COMMAND_NAME;
+import static net.trollyloki.discit.interactions.ReloadInteractions.RESTART_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.SaveInteractions.SAVE_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.SettingsInteractions.SETTINGS_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.UploadInteractions.UPLOAD_COMMAND_NAME;
@@ -40,7 +41,9 @@ public class Discit {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Discit.class);
 
-    public static final String RELOAD_SAVE_NAME = "reload_continue";
+    public static final String
+            RELOAD_SAVE_NAME = "reload_continue",
+            RESTART_SAVE_NAME = "restart_continue";
 
     public static final @Nullable String VERSION;
 
@@ -113,6 +116,7 @@ public class Discit {
                 ),
                 Commands.slash(LIST_COMMAND_NAME, "List added servers and their settings").setContexts(InteractionContextType.GUILD),
                 Commands.slash(RELOAD_COMMAND_NAME, "Save and reload the active session on one or more servers").setContexts(InteractionContextType.GUILD),
+                Commands.slash(RESTART_COMMAND_NAME, "Save and restart one or more servers").setContexts(InteractionContextType.GUILD),
                 Commands.slash(SAVE_COMMAND_NAME, "Create and download a save from a server").setContexts(InteractionContextType.GUILD),
                 Commands.slash(UPLOAD_COMMAND_NAME, "Upload a save file to one or more servers").setContexts(InteractionContextType.GUILD),
                 Commands.message(UPLOAD_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),

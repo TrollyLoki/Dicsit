@@ -34,6 +34,7 @@ import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.IN
 import static net.trollyloki.discit.interactions.ListInteractions.AUTHENTICATE_BUTTON_ID;
 import static net.trollyloki.discit.interactions.NewSessionInteractions.NEW_SESSION_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ReloadInteractions.RELOAD_BUTTON_ID;
+import static net.trollyloki.discit.interactions.ReloadInteractions.RESTART_BUTTON_ID;
 import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_BUTTON_ID;
 import static net.trollyloki.discit.interactions.SaveInteractions.SAVE_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ServerOptionsInteractions.SERVER_OPTIONS_BUTTON_ID;
@@ -170,6 +171,7 @@ public class ServerInfoCache {
 
                 optionsRow.add(Button.secondary(buildId(RENAME_BUTTON_ID, serverId), "Rename Server").withEmoji(Emoji.fromUnicode("🪧")));
                 optionsRow.add(Button.secondary(buildId(SERVER_OPTIONS_BUTTON_ID, serverId), "Server Options").withEmoji(Emoji.fromUnicode("⚙️")));
+                optionsRow.add(Button.secondary(buildId(RESTART_BUTTON_ID, serverId), "Restart Server").withEmoji(Emoji.fromUnicode("⏲️")));
 
                 passwordsRow.add(changePasswordButton(ChangePasswordInteractions.PasswordType.CLIENT).withEmoji(Emoji.fromUnicode("🔓")));
                 passwordsRow.add(changePasswordButton(ChangePasswordInteractions.PasswordType.ADMIN).withEmoji(Emoji.fromUnicode("🔐")));

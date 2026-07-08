@@ -17,11 +17,8 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.net.SocketException;
 import java.time.Duration;
-import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.LoggingUtils.*;
@@ -43,6 +40,8 @@ public class ServerMonitor implements Closeable {
     private final ScheduledExecutorService requestServerStateExecutor;
     private final ScheduledExecutorService receiveServerStateExecutor;
     private final ScheduledExecutorService updateExecutor;
+
+    private final Map<CompletableFuture<@Nullable Void>, Long> waitingFutures = Collections.synchronizedMap(new HashMap<>());
 
     private @Nullable QueryApi queryApi;
 
@@ -86,6 +85,12 @@ public class ServerMonitor implements Closeable {
                 gameStateCache.refresh();
             }
         });
+    }
+
+    public CompletableFuture<@Nullable Void> waitForResponse() {
+        CompletableFuture<@Nullable Void> future = new CompletableFuture<>();
+        waitingFutures.put(future, System.nanoTime());
+        return future;
     }
 
     @Override
@@ -161,6 +166,19 @@ public class ServerMonitor implements Closeable {
                     guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went down " + TimeFormat.RELATIVE.before(timeoutMillis));
 
                 }, alertDelay.toNanos(), TimeUnit.NANOSECONDS);
+            }
+
+            // Notify waiting futures
+            synchronized (waitingFutures) {
+                Iterator<Map.Entry<CompletableFuture<@Nullable Void>, Long>> iterator = waitingFutures.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<CompletableFuture<@Nullable Void>, Long> entry = iterator.next();
+                    // Only notify futures that have been waiting since BEFORE this response was requested
+                    if (entry.getValue() < response.cookie()) {
+                        entry.getKey().complete(null);
+                        iterator.remove();
+                    }
+                }
             }
 
             updateExecutor.submit(() -> {
