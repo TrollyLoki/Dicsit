@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.components.ModalTopLevelComponent;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.attachmentupload.AttachmentUpload;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.checkbox.Checkbox;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.label.LabelChildComponent;
 import net.dv8tion.jda.api.components.selections.SelectMenu;
@@ -20,6 +21,7 @@ import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
+import net.trollyloki.discit.GuildManager;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.discit.interactions.cache.AutoKeyedCache;
@@ -44,6 +46,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.discit.FormattingUtils.safeMonospace;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
@@ -62,7 +65,8 @@ public final class UploadInteractions {
             UPLOAD_BUTTON_ID = "upload",
             UPLOAD_MODAL_ID = "upload",
             UPLOAD_CANCEL_BUTTON_ID = "upload-cancel",
-            UPLOAD_CONFIRM_BUTTON_ID = "upload-confirm";
+            UPLOAD_CONFIRM_BUTTON_ID = "upload-confirm",
+            UPLOAD_AND_DEFER_LOAD_BUTTON_ID = "upload-defer";
 
     private record AttachmentInfo(String url, String fileName) {
         AttachmentInfo(Message.Attachment attachment) {
@@ -74,7 +78,7 @@ public final class UploadInteractions {
         }
     }
 
-    private record UploadInfo(AttachmentInfo attachmentInfo, List<String> serverIdStrings, boolean loadCreative) {
+    private record UploadInfo(AttachmentInfo attachmentInfo, List<String> serverIdStrings) {
     }
 
     private static final ModalOptionCache<AttachmentInfo> ATTACHMENT_CACHE = new ModalOptionCache<>();
@@ -135,12 +139,7 @@ public final class UploadInteractions {
         return Modal.create(customId, "Upload Save").addComponents(
                 serversComponent,
                 Label.of("Save File", saveFileComponentCreator.apply("save")),
-                Label.of("Action", "The action to perform with the uploaded save", StringSelectMenu.create("action")
-                        .addOption("Nothing", "nothing", "Just upload the save")
-                        .addOption("Load", "load", "Load the save")
-                        .addOption("Load with Creative Mode", "load-creative", "Load the save with Creative Mode enabled")
-                        .setDefaultValues("load")
-                        .build())
+                Label.of("Load", Checkbox.of("load", true))
         ).build();
     }
 
@@ -188,34 +187,27 @@ public final class UploadInteractions {
             }
         }
 
-        ModalMapping action = event.getValue("action");
-        if (action == null) {
-            event.reply("Please select an action").setEphemeral(true).queue();
-            return;
-        }
-
-        String actionString = action.getAsStringList().getFirst();
-        boolean load = actionString.startsWith("load");
-        boolean loadCreative = actionString.equals("load-creative");
+        ModalMapping load = event.getValue("load");
 
         event.deferReply(isDashboard(event)).queue();
 
-        if (!load) {
+        if (load == null || !load.getAsBoolean()) {
             // Skip player check when just uploading
-            uploadSave(event, attachmentInfo, servers, false, false);
+            uploadSave(event, attachmentInfo, serverIdStrings, servers, false, false);
             return;
         }
 
         checkForPlayersAsyncWithMDC(servers).thenAcceptAsync(withMDC(message -> {
             if (message == null) {
                 // Skip confirmation if no players are connected
-                uploadSave(event, attachmentInfo, servers, true, loadCreative);
+                uploadSave(event, attachmentInfo, serverIdStrings, servers, true, false);
                 return;
             }
 
-            UUID key = UPLOAD_INFO_CACHE.put(new UploadInfo(attachmentInfo, serverIdStrings, loadCreative));
+            UUID key = UPLOAD_INFO_CACHE.put(new UploadInfo(attachmentInfo, serverIdStrings));
             event.getHook().editOriginal(message).setComponents(ActionRow.of(
-                    Button.primary(buildId(UPLOAD_CONFIRM_BUTTON_ID, event.getUser().getId(), key), "Load Anyway"),
+                    Button.primary(buildId(UPLOAD_AND_DEFER_LOAD_BUTTON_ID, event.getUser().getId(), key), "Upload and Defer Load"),
+                    Button.danger(buildId(UPLOAD_CONFIRM_BUTTON_ID, event.getUser().getId(), key), "Load Anyway"),
                     Button.secondary(buildId(UPLOAD_CANCEL_BUTTON_ID, event.getUser().getId(), key), "Cancel")
             )).queue();
         }));
@@ -234,7 +226,7 @@ public final class UploadInteractions {
         event.getHook().deleteOriginal().queue();
     }
 
-    public static void onUploadConfirmButton(ButtonInteractionEvent event, String userId, String keyString) {
+    public static void onUploadConfirmButton(ButtonInteractionEvent event, String userId, String keyString, boolean deferLoad) {
         if (!event.getUser().getId().equals(userId)) {
             // Ignore
             event.deferEdit().queue();
@@ -254,10 +246,10 @@ public final class UploadInteractions {
             return;
 
         event.deferEdit().queue();
-        uploadSave(event, uploadInfo.attachmentInfo, servers, true, uploadInfo.loadCreative);
+        uploadSave(event, uploadInfo.attachmentInfo, uploadInfo.serverIdStrings, servers, !deferLoad, deferLoad);
     }
 
-    private static void uploadSave(IDeferrableCallback callback, AttachmentInfo attachmentInfo, List<Server> servers, boolean load, boolean loadCreative) {
+    private static void uploadSave(IDeferrableCallback callback, AttachmentInfo attachmentInfo, List<String> serverIdStrings, List<Server> servers, boolean load, boolean deferLoad) {
         NamedAttachmentProxy attachment = attachmentInfo.getProxy();
         String saveName = SaveFileReader.saveNameOf(attachment.getFileName());
         attachment.download().thenAcceptAsync(withMDC(downloadStream -> {
@@ -282,6 +274,7 @@ public final class UploadInteractions {
                 return;
             }
 
+            GuildManager guildManager = getGuildManager(callback);
             for (int i = 0; i < servers.size(); i++) {
                 final int index = i;
                 Server server = servers.get(index);
@@ -290,14 +283,28 @@ public final class UploadInteractions {
 
                 requestAsyncWithMDC(server, "upload " + attachment.getUrl() + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {
-                        httpsApi.uploadSave(uploadStream, saveName, load, loadCreative);
+                        httpsApi.uploadSave(uploadStream, saveName, load, false);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                 }).thenApplyAsync(withMDC(_ -> {
+                    if (load) {
+                        // Cancel previously deferred loads
+                        guildManager.cancelDeferredLoad(UUID.fromString(serverIdStrings.get(index)));
+                    }
+
                     String result = load ? "loaded " + attachment.getUrl() + " on" : "uploaded " + attachment.getUrl() + " to";
                     logActionWithServer(callback, result, server.getName());
-                    return "Successfully " + result + " " + inlineServerDisplayName(server.getName());
+
+                    if (deferLoad) {
+                        guildManager.deferLoad(UUID.fromString(serverIdStrings.get(index)), saveName);
+
+                        logActionWithServer(callback, "deferred loading " + safeMonospace(saveName + SaveFileReader.EXTENSION) + " on", server.getName());
+
+                        return attachment.getUrl() + " will be loaded on " + inlineServerDisplayName(server.getName()) + " when there are no players connected";
+                    } else {
+                        return "Successfully " + result + " " + inlineServerDisplayName(server.getName());
+                    }
                 })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                     messageLines.set(index, message);
                     synchronized (messageLines) {

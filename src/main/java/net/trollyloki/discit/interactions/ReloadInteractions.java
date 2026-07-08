@@ -43,12 +43,14 @@ public final class ReloadInteractions {
             RELOAD_MODAL_ID = "reload",
             RELOAD_CANCEL_BUTTON_ID = "reload-cancel",
             RELOAD_CONFIRM_BUTTON_ID = "reload-confirm",
+            RELOAD_DEFER_BUTTON_ID = "reload-defer",
             RELOAD_BUTTON_ID = "reload";
 
     public static final String
             RESTART_COMMAND_NAME = "restart",
             RESTART_MODAL_ID = "restart",
             RESTART_CONFIRM_BUTTON_ID = "restart-confirm",
+            RESTART_DEFER_BUTTON_ID = "restart-defer",
             RESTART_BUTTON_ID = "restart";
 
     private static final AutoKeyedCache<List<String>> SERVER_SELECTION_CACHE = new AutoKeyedCache<>();
@@ -105,16 +107,19 @@ public final class ReloadInteractions {
             }
 
             UUID key = SERVER_SELECTION_CACHE.put(serverIdStrings);
-            String confirmButtonId, actionLabel;
+            String confirmButtonId, deferButtonId, actionLabel;
             if (shutdown) {
                 confirmButtonId = RESTART_CONFIRM_BUTTON_ID;
+                deferButtonId = RESTART_DEFER_BUTTON_ID;
                 actionLabel = "Restart";
             } else {
                 confirmButtonId = RELOAD_CONFIRM_BUTTON_ID;
+                deferButtonId = RELOAD_DEFER_BUTTON_ID;
                 actionLabel = "Reload";
             }
             callback.getHook().editOriginal(message).setComponents(ActionRow.of(
-                    Button.primary(buildId(confirmButtonId, callback.getUser().getId(), key), actionLabel + " Anyway"),
+                    Button.primary(buildId(deferButtonId, callback.getUser().getId(), key), "Defer " + actionLabel),
+                    Button.danger(buildId(confirmButtonId, callback.getUser().getId(), key), actionLabel + " Anyway"),
                     Button.secondary(buildId(RELOAD_CANCEL_BUTTON_ID, callback.getUser().getId(), key), "Cancel")
             )).queue();
         }));
@@ -133,7 +138,7 @@ public final class ReloadInteractions {
         event.getHook().deleteOriginal().queue();
     }
 
-    public static void onReloadConfirmButton(ButtonInteractionEvent event, boolean shutdown, String userId, String keyString) {
+    public static void onReloadConfirmButton(ButtonInteractionEvent event, boolean shutdown, String userId, String keyString, boolean defer) {
         if (!event.getUser().getId().equals(userId)) {
             // Ignore
             event.deferEdit().queue();
@@ -152,8 +157,15 @@ public final class ReloadInteractions {
         if (!shutdown && serverIdStrings.size() == 1) {
             Map.Entry<UUID, Server> channelServer = getGuildManager(event).getChannelServer(event.getChannelId());
             if (channelServer != null && channelServer.getValue().isAllowReloading() && channelServer.getKey().toString().equals(serverIdStrings.getFirst())) {
+                List<String> singleServerIdString = Collections.singletonList(serverIdStrings.getFirst());
+                List<Server> singleServer = Collections.singletonList(channelServer.getValue());
+
                 event.deferEdit().queue();
-                reload(event, false, Collections.singletonList(serverIdStrings.getFirst()), Collections.singletonList(channelServer.getValue()));
+                if (defer) {
+                    deferReload(event, false, singleServerIdString, singleServer);
+                } else {
+                    reload(event, false, singleServerIdString, singleServer);
+                }
                 return;
             }
         }
@@ -163,7 +175,11 @@ public final class ReloadInteractions {
             return;
 
         event.deferEdit().queue();
-        reload(event, shutdown, serverIdStrings, servers);
+        if (defer) {
+            deferReload(event, shutdown, serverIdStrings, servers);
+        } else {
+            reload(event, shutdown, serverIdStrings, servers);
+        }
     }
 
     public static void onReloadButton(ButtonInteractionEvent event, boolean shutdown, String serverIdString) {
@@ -172,6 +188,28 @@ public final class ReloadInteractions {
             return;
 
         confirmReload(event, shutdown, Collections.singletonList(serverIdString), Collections.singletonList(server));
+    }
+
+    private static void deferReload(IReplyCallback callback, boolean shutdown, List<String> serverIdStrings, List<Server> servers) {
+        GuildManager guildManager = getGuildManager(callback);
+        for (String serverIdString : serverIdStrings) {
+            UUID serverId = UUID.fromString(serverIdString);
+            if (shutdown) {
+                guildManager.deferRestart(serverId);
+            } else {
+                guildManager.deferReload(serverId);
+            }
+        }
+
+        for (Server server : servers) {
+            logActionWithServer(callback, "deferred re" + (shutdown ? "start" : "load") + "ing", server.getName());
+        }
+
+        String suffix = " will be re" + (shutdown ? "start" : "load") + "ed when there are no players connected";
+        callback.getHook().editOriginal(servers.stream()
+                .map(server -> inlineServerDisplayName(server.getName()) + suffix)
+                .collect(Collectors.joining("\n"))
+        ).setComponents(Collections.emptySet()).queue();
     }
 
     private static void reload(IReplyCallback callback, boolean shutdown, List<String> serverIdStrings, List<Server> servers) {
@@ -193,20 +231,26 @@ public final class ReloadInteractions {
         GuildManager guildManager = getGuildManager(callback);
         for (int i = 0; i < servers.size(); i++) {
             final int index = i;
+            UUID serverId = UUID.fromString(serverIdStrings.get(index));
             Server server = servers.get(index);
 
             LOGGER.info("{}{}", actionPrefix, serverNameForLog(server.getName()));
 
             CompletableFuture<Boolean> actionFuture;
             if (shutdown) {
-                UUID serverId = UUID.fromString(serverIdStrings.get(index));
-                actionFuture = saveAndShutdownWithMDC(server).thenCompose(_ -> guildManager.waitForServer(serverId)).thenApplyAsync(_ -> true);
+                actionFuture = saveAndRestartAsyncWithMDC(server).thenCompose(_ -> guildManager.waitForServer(serverId)).thenApplyAsync(_ -> true);
             } else {
                 actionFuture = reloadAsyncWithMDC(server);
             }
             actionFuture.thenApplyAsync(withMDC(verified -> {
                 if (!verified) {
                     return "Reload verification for " + inlineServerDisplayName(server.getName()) + " failed, please try again";
+                }
+
+                // Cancel previously deferred reloads and (if restarting) restarts
+                guildManager.cancelDeferredReload(serverId);
+                if (shutdown) {
+                    guildManager.cancelDeferredRestart(serverId);
                 }
 
                 String action = "re" + (shutdown ? "start" : "load") + "ed";

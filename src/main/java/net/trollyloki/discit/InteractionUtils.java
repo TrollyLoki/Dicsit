@@ -436,8 +436,8 @@ public final class InteractionUtils {
         httpsApi.save(saveName);
     }
 
-    public static CompletableFuture<@Nullable Void> saveAndShutdownWithMDC(Server server) {
-        return requestAsyncWithMDC(server, "save and shut down", httpsApi -> {
+    public static CompletableFuture<@Nullable Void> saveAndRestartAsyncWithMDC(Server server) {
+        return requestAsyncWithMDC(server, "save and restart", httpsApi -> {
             if (httpsApi.queryServerState().isGameRunning()) {
                 httpsApi.save(Discit.RESTART_SAVE_NAME);
             }

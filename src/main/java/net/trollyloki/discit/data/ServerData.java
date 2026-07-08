@@ -28,6 +28,10 @@ public class ServerData implements Server {
     private long offlineAlertDelaySeconds = -1;
     private boolean allowReloading = false;
 
+    private @Nullable String deferredLoadSaveName;
+    private boolean deferredReload;
+    private boolean deferredRestart;
+
     private @Nullable String dashboardMessageId;
     private @Nullable String serverChannelId;
 
@@ -102,6 +106,33 @@ public class ServerData implements Server {
 
     public void setAllowReloading(boolean allowReloading) {
         this.allowReloading = allowReloading;
+    }
+
+    @Override
+    public @Nullable String getDeferredLoadSaveName() {
+        return deferredLoadSaveName;
+    }
+
+    public void setDeferredLoadSaveName(@Nullable String deferredLoadSaveName) {
+        this.deferredLoadSaveName = deferredLoadSaveName;
+    }
+
+    @Override
+    public boolean isDeferredReload() {
+        return deferredReload;
+    }
+
+    public void setDeferredReload(boolean deferredReload) {
+        this.deferredReload = deferredReload;
+    }
+
+    @Override
+    public boolean isDeferredRestart() {
+        return deferredRestart;
+    }
+
+    public void setDeferredRestart(boolean deferredRestart) {
+        this.deferredRestart = deferredRestart;
     }
 
     public @Nullable String getDashboardMessageId() {

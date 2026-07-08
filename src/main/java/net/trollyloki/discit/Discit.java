@@ -28,6 +28,7 @@ import static net.trollyloki.discit.interactions.AboutInteractions.ABOUT_COMMAND
 import static net.trollyloki.discit.interactions.AddInteractions.ADD_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
+import static net.trollyloki.discit.interactions.DeferredActionsInteractions.DEFERRED_ACTIONS_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.ListInteractions.LIST_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.ReloadInteractions.RELOAD_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.ReloadInteractions.RESTART_COMMAND_NAME;
@@ -121,6 +122,7 @@ public class Discit {
                 Commands.slash(UPLOAD_COMMAND_NAME, "Upload a save file to one or more servers").setContexts(InteractionContextType.GUILD),
                 Commands.message(UPLOAD_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),
                 Commands.slash(BACKUP_COMMAND_NAME, "Create a backup of saves from one or more servers").setContexts(InteractionContextType.GUILD),
+                Commands.slash(DEFERRED_ACTIONS_COMMAND_NAME, "Manage deferred actions").setContexts(InteractionContextType.GUILD),
                 Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME).setContexts(
                         InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL
                 ).setIntegrationTypes(IntegrationType.GUILD_INSTALL, IntegrationType.USER_INSTALL)

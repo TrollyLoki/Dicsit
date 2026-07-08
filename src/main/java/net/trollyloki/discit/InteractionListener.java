@@ -26,6 +26,7 @@ import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.onAnaly
 import static net.trollyloki.discit.interactions.BackupInteractions.*;
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.*;
 import static net.trollyloki.discit.interactions.CreativeModeInteractions.*;
+import static net.trollyloki.discit.interactions.DeferredActionsInteractions.*;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.onInvalidateTokensButton;
 import static net.trollyloki.discit.interactions.ListInteractions.*;
@@ -74,6 +75,7 @@ public class InteractionListener extends ListenerAdapter {
                 case SAVE_COMMAND_NAME -> onSaveCommand(event);
                 case UPLOAD_COMMAND_NAME -> onUploadCommand(event);
                 case BACKUP_COMMAND_NAME -> onBackupCommand(event);
+                case DEFERRED_ACTIONS_COMMAND_NAME -> onDeferredActionsCommand(event);
                 default -> LOGGER.warn("Unknown slash command {}", event.getName());
             }
         } finally {
@@ -136,14 +138,17 @@ public class InteractionListener extends ListenerAdapter {
                 case ALLOW_RELOADING_BUTTON_ID -> onAllowReloadingButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case DASHBOARD_REFRESH_BUTTON_ID -> onDashboardRefreshButton(event, id[1]);
                 case RELOAD_CANCEL_BUTTON_ID -> onReloadCancelButton(event, id[1], id[2]);
-                case RELOAD_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, false, id[1], id[2]);
-                case RESTART_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, true, id[1], id[2]);
+                case RELOAD_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, false, id[1], id[2], false);
+                case RELOAD_DEFER_BUTTON_ID -> onReloadConfirmButton(event, false, id[1], id[2], true);
+                case RESTART_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, true, id[1], id[2], false);
+                case RESTART_DEFER_BUTTON_ID -> onReloadConfirmButton(event, true, id[1], id[2], true);
                 case RELOAD_BUTTON_ID -> onReloadButton(event, false, id[1]);
                 case RESTART_BUTTON_ID -> onReloadButton(event, true, id[1]);
                 case SAVE_BUTTON_ID -> onSaveButton(event, id[1]);
                 case UPLOAD_BUTTON_ID -> onUploadButton(event, id[1]);
                 case UPLOAD_CANCEL_BUTTON_ID -> onUploadCancelButton(event, id[1], id[2]);
-                case UPLOAD_CONFIRM_BUTTON_ID -> onUploadConfirmButton(event, id[1], id[2]);
+                case UPLOAD_CONFIRM_BUTTON_ID -> onUploadConfirmButton(event, id[1], id[2], false);
+                case UPLOAD_AND_DEFER_LOAD_BUTTON_ID -> onUploadConfirmButton(event, id[1], id[2], true);
                 case NEW_SESSION_BUTTON_ID -> onNewSessionButton(event, id[1]);
                 case NEW_SESSION_CANCEL_BUTTON_ID -> onNewSessionCancelButton(event, id[1], id[2]);
                 case NEW_SESSION_CONFIRM_BUTTON_ID -> onNewSessionConfirmButton(event, id[1], id[2]);
@@ -154,6 +159,9 @@ public class InteractionListener extends ListenerAdapter {
                 case CREATIVE_ENABLE_BUTTON_ID -> onCreativeModeSettingEnableButton(event, id[1], id[2]);
                 case CHANGE_PASSWORD_BUTTON_ID -> onChangePasswordButton(event, id[1], id[2]);
                 case INVALIDATE_TOKENS_BUTTON_ID -> onInvalidateTokensButton(event, id[1]);
+                case CANCEL_DEFERRED_LOAD_BUTTON_ID -> onCancelDeferredLoadButton(event, id[1]);
+                case CANCEL_DEFERRED_RELOAD_BUTTON_ID -> onCancelDeferredReloadButton(event, id[1]);
+                case CANCEL_DEFERRED_RESTART_BUTTON_ID -> onCancelDeferredRestartButton(event, id[1]);
                 default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
             }
         } finally {

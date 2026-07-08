@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.utils.TimeFormat;
 import net.trollyloki.discit.Discit;
 import net.trollyloki.discit.GuildManager;
 import net.trollyloki.discit.Server;
+import net.trollyloki.jicsit.server.https.ServerGameState;
 import net.trollyloki.jicsit.server.query.QueryApi;
 import net.trollyloki.jicsit.server.query.ServerState;
 import net.trollyloki.jicsit.server.query.ServerStatus;
@@ -203,6 +204,12 @@ public class ServerMonitor implements Closeable {
                 }
 
                 updateDashboardInfo(build, status, ping);
+
+                // Check if deferred actions can be executed now
+                ServerGameState gameState = gameStateCache.getGameState();
+                if (status == ServerStatus.IDLE || gameState != null && gameState.connectedPlayerCount() == 0) {
+                    guildManager.executeDeferredAction(serverId);
+                }
 
             });
 

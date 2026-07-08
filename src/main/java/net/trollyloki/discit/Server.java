@@ -27,6 +27,12 @@ public interface Server {
 
     boolean isAllowReloading();
 
+    @Nullable String getDeferredLoadSaveName();
+
+    boolean isDeferredReload();
+
+    boolean isDeferredRestart();
+
     QueryApi queryApi(@Nullable Duration timeout) throws SocketException;
 
     HttpsApi httpsApi(@Nullable Duration timeout);

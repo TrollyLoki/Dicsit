@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.trollyloki.discit.data.GuildData;
 import net.trollyloki.discit.data.ServerData;
 import net.trollyloki.discit.monitoring.ServerMonitor;
+import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -25,6 +26,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static net.trollyloki.discit.AddressUtils.validateHostAddress;
+import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.discit.FormattingUtils.safeMonospace;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
@@ -361,6 +365,161 @@ public class GuildManager {
 
         server.setOfflineAlertDelaySeconds(durationToSeconds(delay));
         save();
+    }
+
+    public void deferLoad(UUID serverId, String saveName) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not defer load for unknown server {}", serverId);
+            return;
+        }
+
+        server.setDeferredLoadSaveName(saveName);
+        save();
+    }
+
+    public void deferReload(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not defer reload for unknown server {}", serverId);
+            return;
+        }
+
+        server.setDeferredReload(true);
+        save();
+    }
+
+    public void deferRestart(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not defer restart for unknown server {}", serverId);
+            return;
+        }
+
+        server.setDeferredRestart(true);
+        save();
+    }
+
+    public boolean cancelDeferredLoad(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not cancel deferred load for unknown server {}", serverId);
+            return false;
+        }
+
+        if (server.getDeferredLoadSaveName() == null) {
+            return false;
+        }
+
+        server.setDeferredLoadSaveName(null);
+        save();
+        return true;
+    }
+
+    public boolean cancelDeferredReload(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not cancel deferred reload for unknown server {}", serverId);
+            return false;
+        }
+
+        if (!server.isDeferredReload()) {
+            return false;
+        }
+
+        server.setDeferredReload(false);
+        save();
+        return true;
+    }
+
+    public boolean cancelDeferredRestart(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not cancel deferred restart for unknown server {}", serverId);
+            return false;
+        }
+
+        if (!server.isDeferredRestart()) {
+            return false;
+        }
+
+        server.setDeferredRestart(false);
+        save();
+        return true;
+    }
+
+    public synchronized void executeDeferredAction(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not execute deferred action for unknown server {}", serverId);
+            return;
+        }
+
+        // Check for deferred actions
+        String loadSaveName = server.getDeferredLoadSaveName();
+        boolean reload = server.isDeferredReload();
+        boolean restart = server.isDeferredRestart();
+
+        if (loadSaveName == null && !reload && !restart) {
+            // No deferred actions
+            return;
+        }
+
+        // Clear deferred actions
+        server.setDeferredLoadSaveName(null);
+        server.setDeferredReload(false);
+        server.setDeferredRestart(false);
+        save();
+
+        // Execute deferred actions
+        // Note that loading a new save and/or restarting the server also serves as a reload
+        if (loadSaveName != null) {
+            LOGGER.info("Executing deferred load of save \"{}\" on {}", loadSaveName, serverNameForLog(server.getName()));
+
+            String saveFilename = safeMonospace(loadSaveName + SaveFileReader.EXTENSION);
+            InteractionUtils.requestAsyncWithMDC(server, "load " + saveFilename + " on", httpsApi -> {
+                httpsApi.loadSave(loadSaveName, false);
+            }).whenCompleteAsync(withMDC((_, throwable) -> {
+                if (throwable != null) {
+                    logAlert(InteractionUtils.exceptionMessage(throwable));
+                } else {
+                    log("Successfully loaded " + saveFilename + " on " + inlineServerDisplayName(server.getName()));
+                }
+
+                if (restart) {
+                    // Restart AFTER loading the new save so we don't have to wait for the full restart to finish
+                    // The restart process creates a brand new save so the server will not revert to the previous save
+                    executeDeferredRestart(serverId, server);
+                }
+            }));
+        } else if (restart) {
+            executeDeferredRestart(serverId, server);
+        } else {
+            LOGGER.info("Executing deferred reload of {}", serverNameForLog(server.getName()));
+
+            InteractionUtils.reloadAsyncWithMDC(server).whenCompleteAsync(withMDC((verified, throwable) -> {
+                if (throwable != null) {
+                    logAlert(InteractionUtils.exceptionMessage(throwable));
+                } else if (!verified) {
+                    logAlert("Reload verification for " + inlineServerDisplayName(server.getName()) + " failed, try reloading again");
+                } else {
+                    log("Successfully reloaded " + inlineServerDisplayName(server.getName()));
+                }
+            }));
+        }
+    }
+
+    private void executeDeferredRestart(UUID serverId, Server server) {
+        LOGGER.info("Executing deferred restart of {}", serverNameForLog(server.getName()));
+
+        InteractionUtils.saveAndRestartAsyncWithMDC(server).whenCompleteAsync(withMDC((_, throwable) -> {
+            if (throwable != null) {
+                logAlert(InteractionUtils.exceptionMessage(throwable));
+            } else {
+                log("Restarting " + inlineServerDisplayName(server.getName()));
+                waitForServer(serverId).thenRunAsync(withMDC(() -> log("Successfully restarted " + inlineServerDisplayName(server.getName()))));
+            }
+        }));
     }
 
     public @Nullable String getDashboardMessageId(UUID serverId) {
