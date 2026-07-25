@@ -349,6 +349,22 @@ public class GuildManager {
         return true;
     }
 
+    public boolean setDisableSaving(UUID serverId, boolean disableSaving) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not set disable saving value for unknown server {}", serverId);
+            return false;
+        }
+
+        server.setDisableSaving(disableSaving);
+        save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setDisableSaving(disableSaving);
+
+        return true;
+    }
+
     public @Nullable Duration getOfflineAlertDelay(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
         if (server == null) return null;

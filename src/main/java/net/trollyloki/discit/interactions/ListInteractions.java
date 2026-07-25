@@ -65,6 +65,7 @@ public final class ListInteractions {
             CONFIRM_FINGERPRINT_BUTTON_ID = "fingerprint",
             LIST_REMOVE_BUTTON_ID = "list-remove",
             OFFLINE_ALERT_DELAY_SELECT_ID = "server-offline-alert-delay",
+            DISABLE_SAVING_BUTTON_ID = "disable-saving",
             SERVER_CHANNEL_SELECT_ID = "server-channel",
             UNSET_SERVER_CHANNEL_BUTTON_ID = "unset-server-channel",
             ALLOW_RELOADING_BUTTON_ID = "allow-reloading";
@@ -98,6 +99,13 @@ public final class ListInteractions {
                 TextDisplay.of("### Offline Alert Delay"),
                 TextDisplay.of("If this server goes and stays offline for this amount of time, an alert will be sent to the log channel set in " + Discit.get().getCommand(SETTINGS_COMMAND_NAME).getAsMention() + " (currently " + logChannelString + ")"),
                 ActionRow.of(offlineAlertDelaySelect),
+                Separator.createInvisible(Separator.Spacing.SMALL),
+                TextDisplay.of("### Disable Saving"),
+                TextDisplay.of("If checked, saves will not be created on this server"),
+                ActionRow.of(Button.secondary(
+                        buildId(DISABLE_SAVING_BUTTON_ID, serverIdString, !server.isDisableSaving()),
+                        "Disable Saving"
+                ).withEmoji(server.isDisableSaving() ? CHECKBOX_CHECKED_EMOJI : CHECKBOX_EMPTY_EMOJI)),
                 Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Server Channel"),
                 TextDisplay.of("Slash commands sent in this channel will select this server automatically"),
@@ -345,6 +353,21 @@ public final class ListInteractions {
             event.reply("Offline alerts disabled").setEphemeral(true).queue();
             logActionWithServer(event, "disabled offline alerts for", server.getName());
         }
+    }
+
+    public static void onDisableSavingButton(ButtonInteractionEvent event, String serverIdString, boolean value) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        if (!getGuildManager(event).setDisableSaving(UUID.fromString(serverIdString), value)) {
+            event.reply("Failed to set disable saving value").setEphemeral(true).queue();
+            return;
+        }
+
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
+
+        logActionWithServer(event, (value ? "disabled" : "enabled") + " saving", server.getName());
     }
 
     public static void onServerChannelSelect(EntitySelectInteractionEvent event, String serverIdString) {

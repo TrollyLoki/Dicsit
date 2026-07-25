@@ -136,6 +136,7 @@ public class InteractionListener extends ListenerAdapter {
                 case LIST_REMOVE_BUTTON_ID -> onListRemoveButton(event, id[1]);
                 case UNSET_SERVER_CHANNEL_BUTTON_ID -> onUnsetServerChannelButton(event, id[1]);
                 case ALLOW_RELOADING_BUTTON_ID -> onAllowReloadingButton(event, id[1], Boolean.parseBoolean(id[2]));
+                case DISABLE_SAVING_BUTTON_ID -> onDisableSavingButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case DASHBOARD_REFRESH_BUTTON_ID -> onDashboardRefreshButton(event, id[1]);
                 case RELOAD_CANCEL_BUTTON_ID -> onReloadCancelButton(event, id[1], id[2]);
                 case RELOAD_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, false, id[1], id[2], false);

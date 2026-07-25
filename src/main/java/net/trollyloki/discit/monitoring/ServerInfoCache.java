@@ -3,6 +3,7 @@ package net.trollyloki.discit.monitoring;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.actionrow.ActionRowChildComponent;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.buttons.ButtonStyle;
 import net.dv8tion.jda.api.components.container.Container;
 import net.dv8tion.jda.api.components.container.ContainerChildComponent;
 import net.dv8tion.jda.api.components.separator.Separator;
@@ -59,13 +60,15 @@ public class ServerInfoCache {
     private @Nullable Timestamp lastUpdated;
 
     private boolean authenticated;
+    private boolean disableSaving;
 
-    public ServerInfoCache(GuildManager guildManager, UUID serverId, boolean authenticated) {
+    public ServerInfoCache(GuildManager guildManager, UUID serverId, boolean authenticated, boolean disableSaving) {
         this.serverId = serverId;
 
         this.dashboardUpdater = new DashboardUpdater(guildManager, serverId);
 
         this.authenticated = authenticated;
+        this.disableSaving = disableSaving;
     }
 
     public synchronized void setInfo(@Nullable String name, int build, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
@@ -95,6 +98,15 @@ public class ServerInfoCache {
             return;
 
         this.authenticated = authenticated;
+
+        updateDashboardMessage();
+    }
+
+    public synchronized void setDisableSaving(boolean disableSaving) {
+        if (disableSaving == this.disableSaving)
+            return;
+
+        this.disableSaving = disableSaving;
 
         updateDashboardMessage();
     }
@@ -158,11 +170,13 @@ public class ServerInfoCache {
                 }
                 primaryRow.add(Button.secondary(buildId(AUTHENTICATE_BUTTON_ID, serverId), "Authenticate"));
             } else {
-                if (playing) {
+                ButtonStyle uploadButtonStyle = ButtonStyle.PRIMARY;
+                if (playing && !disableSaving) {
+                    uploadButtonStyle = ButtonStyle.SECONDARY;
                     primaryRow.add(Button.primary(buildId(RELOAD_BUTTON_ID, serverId), "Reload Session"));
                     primaryRow.add(Button.secondary(buildId(SAVE_BUTTON_ID, serverId), "Download Save").withEmoji(Emoji.fromUnicode("💾")));
                 }
-                primaryRow.add(Button.secondary(buildId(UPLOAD_BUTTON_ID, serverId), "Upload Save").withEmoji(Emoji.fromUnicode("📡")));
+                primaryRow.add(Button.of(uploadButtonStyle, buildId(UPLOAD_BUTTON_ID, serverId), "Upload Save").withEmoji(Emoji.fromUnicode("📡")));
 
                 gameRow.add(Button.secondary(buildId(NEW_SESSION_BUTTON_ID, serverId), "New Session").withEmoji(Emoji.fromUnicode("🚀")));
                 if (playing) {

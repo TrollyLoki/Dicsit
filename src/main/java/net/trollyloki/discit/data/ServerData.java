@@ -27,6 +27,7 @@ public class ServerData implements Server {
     private @Nullable String token;
     private long offlineAlertDelaySeconds = -1;
     private boolean allowReloading = false;
+    private boolean disableSaving = false;
 
     private @Nullable String deferredLoadSaveName;
     private boolean deferredReload;
@@ -106,6 +107,15 @@ public class ServerData implements Server {
 
     public void setAllowReloading(boolean allowReloading) {
         this.allowReloading = allowReloading;
+    }
+
+    @Override
+    public boolean isDisableSaving() {
+        return disableSaving;
+    }
+
+    public void setDisableSaving(boolean disableSaving) {
+        this.disableSaving = disableSaving;
     }
 
     @Override

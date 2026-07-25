@@ -27,6 +27,8 @@ public interface Server {
 
     boolean isAllowReloading();
 
+    boolean isDisableSaving();
+
     @Nullable String getDeferredLoadSaveName();
 
     boolean isDeferredReload();

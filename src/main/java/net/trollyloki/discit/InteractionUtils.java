@@ -371,7 +371,7 @@ public final class InteractionUtils {
     }
 
     private static class FormattedException extends RuntimeException {
-        private FormattedException(String message, Throwable cause) {
+        private FormattedException(String message, @Nullable Throwable cause) {
             super(message, cause);
         }
     }
@@ -437,8 +437,14 @@ public final class InteractionUtils {
     }
 
     public static CompletableFuture<@Nullable Void> saveAndRestartAsyncWithMDC(Server server) {
-        return requestAsyncWithMDC(server, "save and restart", httpsApi -> {
-            if (httpsApi.queryServerState().isGameRunning()) {
+        String action = "restart";
+        boolean save = !server.isDisableSaving();
+        if (save) {
+            action = "save and " + action;
+        }
+
+        return requestAsyncWithMDC(server, action, httpsApi -> {
+            if (save && httpsApi.queryServerState().isGameRunning()) {
                 httpsApi.save(Discit.RESTART_SAVE_NAME);
             }
             httpsApi.shutdownServer();
@@ -446,6 +452,10 @@ public final class InteractionUtils {
     }
 
     public static CompletableFuture<Boolean> reloadAsyncWithMDC(Server server) {
+        if (server.isDisableSaving()) {
+            return CompletableFuture.failedFuture(new FormattedException("Cannot reload " + inlineServerDisplayName(server.getName()) + ": Saving is disabled", null));
+        }
+
         String saveName = Discit.RELOAD_SAVE_NAME;
         return requestAsyncWithMDC(server, "reload", httpsApi -> {
 
@@ -479,6 +489,10 @@ public final class InteractionUtils {
     }
 
     public static CompletableFuture<SaveInfo> saveAsyncWithMDC(Server server, @Nullable String saveName) {
+        if (server.isDisableSaving()) {
+            return CompletableFuture.failedFuture(new FormattedException("Saving " + inlineServerDisplayName(server.getName()) + " is disabled", null));
+        }
+
         return requestAsyncWithMDC(server, "save", httpsApi -> {
 
             String actualSaveName = saveName;
