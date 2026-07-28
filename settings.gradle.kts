@@ -1,1 +1,1 @@
-rootProject.name = "discit"
+rootProject.name = "dicsit"

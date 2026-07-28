@@ -1,0 +1,44 @@
+package net.trollyloki.dicsit.interactions;
+
+import net.dv8tion.jda.api.components.MessageTopLevelComponent;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.container.Container;
+import net.dv8tion.jda.api.components.container.ContainerChildComponent;
+import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.trollyloki.dicsit.Dicsit;
+import org.jspecify.annotations.NullMarked;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@NullMarked
+public final class AboutInteractions {
+    private AboutInteractions() {
+    }
+
+    public static final String ABOUT_COMMAND_NAME = "about";
+
+    public static void onAboutCommand(SlashCommandInteractionEvent event) {
+        List<ContainerChildComponent> containerChildComponents = new ArrayList<>(3);
+
+        containerChildComponents.add(TextDisplay.of("## About Dicsit"));
+        if (Dicsit.VERSION != null)
+            containerChildComponents.add(TextDisplay.of("Running version **" + Dicsit.VERSION + "**"));
+        containerChildComponents.add(TextDisplay.of("Created by TrollyLoki"));
+
+        List<MessageTopLevelComponent> components = new ArrayList<>(3);
+        components.add(Container.of(containerChildComponents));
+        components.add(ActionRow.of(
+                Button.link("https://github.com/TrollyLoki/Dicsit", "Source"),
+                Button.link("https://github.com/TrollyLoki/Dicsit/issues", "Report an Issue")
+        ));
+        if (Dicsit.VERSION != null) components.add(ActionRow.of(
+                Button.link("https://github.com/TrollyLoki/Dicsit/releases/tag/v" + Dicsit.VERSION, "Release Notes")
+        ));
+
+        event.replyComponents(components).useComponentsV2().setEphemeral(true).queue();
+    }
+
+}

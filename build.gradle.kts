@@ -30,7 +30,7 @@ dependencies {
 }
 
 application {
-    mainClass = "net.trollyloki.discit.Discit"
+    mainClass = "net.trollyloki.dicsit.Dicsit"
 }
 
 tasks.processResources {
@@ -39,11 +39,11 @@ tasks.processResources {
 
 jib {
     to {
-        image = "trollyloki/discit"
+        image = "trollyloki/dicsit"
         tags = setOf("$version")
     }
     outputPaths {
-        val path = layout.buildDirectory.file("discit-$version-image").get().asFile.path
+        val path = layout.buildDirectory.file("dicsit-$version-image").get().asFile.path
         tar = "$path.tar"
         digest = "$path.digest"
         imageId = "$path.id"
