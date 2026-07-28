@@ -43,8 +43,8 @@ public class Dicsit {
     private static final Logger LOGGER = LoggerFactory.getLogger(Dicsit.class);
 
     public static final String
-            RELOAD_SAVE_NAME = "reload_continue",
-            RESTART_SAVE_NAME = "restart_continue";
+            RELOAD_SAVE_NAME = "Dicsit_reload",
+            RESTART_SAVE_NAME = "Dicsit_restart";
 
     public static final @Nullable String VERSION;
 
