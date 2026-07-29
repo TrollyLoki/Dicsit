@@ -1,4 +1,5 @@
-# Dicsit
+# Dicsit <img align="right" style="height:4em" alt="Dicsit Logo" src="assets/Dicsit_transparent.png">
+
 Discord application for Satisfactory dedicated server management
 
 ## Overview
