@@ -251,11 +251,12 @@ public final class UploadInteractions {
 
     private static void uploadSave(IDeferrableCallback callback, AttachmentInfo attachmentInfo, List<String> serverIdStrings, List<Server> servers, boolean load, boolean deferLoad) {
         NamedAttachmentProxy attachment = attachmentInfo.getProxy();
+        String monospaceFilename = safeMonospace(attachment.getFileName());
         String saveName = SaveFileReader.saveNameOf(attachment.getFileName());
         attachment.download().thenAcceptAsync(withMDC(downloadStream -> {
 
             List<String> messageLines = Collections.synchronizedList(servers.stream()
-                    .map(server -> "Uploading " + attachment.getUrl() + " to " + inlineServerDisplayName(server.getName()) + "...")
+                    .map(server -> "Uploading " + monospaceFilename + " to " + inlineServerDisplayName(server.getName()) + "...")
                     .collect(Collectors.toList())
             );
             // No need to synchronize here, the list won't be changing yet
@@ -281,7 +282,7 @@ public final class UploadInteractions {
 
                 LOGGER.info("Uploading save \"{}\" to {}", saveName, serverNameForLog(server.getName()));
 
-                requestAsyncWithMDC(server, "upload " + attachment.getUrl() + " to", httpsApi -> {
+                requestAsyncWithMDC(server, "upload " + monospaceFilename + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {
                         httpsApi.uploadSave(uploadStream, saveName, load, false);
                     } catch (IOException e) {
@@ -293,17 +294,16 @@ public final class UploadInteractions {
                         guildManager.cancelDeferredLoad(UUID.fromString(serverIdStrings.get(index)));
                     }
 
-                    String result = load ? "loaded " + attachment.getUrl() + " on" : "uploaded " + attachment.getUrl() + " to";
-                    logActionWithServer(callback, result, server.getName());
+                    logActionWithServer(callback, (load ? "loaded " : "uploaded ") + attachment.getUrl() + (load ? " on" : " to"), server.getName());
 
                     if (deferLoad) {
                         guildManager.deferLoad(UUID.fromString(serverIdStrings.get(index)), saveName);
 
                         logActionWithServer(callback, "deferred loading " + safeMonospace(saveName + SaveFileReader.EXTENSION) + " on", server.getName());
 
-                        return attachment.getUrl() + " will be loaded on " + inlineServerDisplayName(server.getName()) + " when there are no players connected";
+                        return monospaceFilename + " will be loaded on " + inlineServerDisplayName(server.getName()) + " when there are no players connected";
                     } else {
-                        return "Successfully " + result + " " + inlineServerDisplayName(server.getName());
+                        return "Successfully " + (load ? "loaded " : "uploaded ") + monospaceFilename + (load ? " on " : " to ") + inlineServerDisplayName(server.getName());
                     }
                 })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                     messageLines.set(index, message);
