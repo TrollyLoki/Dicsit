@@ -36,8 +36,7 @@ public final class FormattingUtils {
         return text.replaceAll("([\\\\*_`|~#<@>\\[\\]()\\-.])", "\\\\$1");
     }
 
-    public static String safeMonospace(@Nullable String text) {
-        if (text == null) return "`null`";
+    public static String safeMonospace(String text) {
         return '`' + text.replace("`", "") + '`';
     }
 

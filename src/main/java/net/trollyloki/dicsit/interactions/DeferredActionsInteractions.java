@@ -96,19 +96,19 @@ public final class DeferredActionsInteractions {
 
     public static void onCancelDeferredLoadButton(ButtonInteractionEvent event, String serverIdString) {
         onCancelDeferredActionHelper(event, serverIdString, GuildManager::cancelDeferredLoad, server ->
-                "cancelled the deferred load of " + safeMonospace(server.getDeferredLoadSaveName() + SaveFileReader.EXTENSION) + " on"
+                "canceled the deferred load of " + safeMonospace(server.getDeferredLoadSaveName() + SaveFileReader.EXTENSION) + " on"
         );
     }
 
     public static void onCancelDeferredReloadButton(ButtonInteractionEvent event, String serverIdString) {
         onCancelDeferredActionHelper(event, serverIdString, GuildManager::cancelDeferredReload, server ->
-                "cancelled the deferred reload of"
+                "canceled the deferred reload of"
         );
     }
 
     public static void onCancelDeferredRestartButton(ButtonInteractionEvent event, String serverIdString) {
         onCancelDeferredActionHelper(event, serverIdString, GuildManager::cancelDeferredRestart, server ->
-                "cancelled the deferred restart of"
+                "canceled the deferred restart of"
         );
     }
 
@@ -118,15 +118,17 @@ public final class DeferredActionsInteractions {
             return;
 
         UUID serverId = UUID.fromString(serverIdString);
+        Server server = servers.get(serverId);
+        if (server == null) {
+            LOGGER.error("Couldn't find known server in all servers map");
+            return;
+        }
+
+        String action = actionFunction.apply(server); // have to do this before removing the action
         boolean success = cancelMethod.test(getGuildManager(event), serverId);
 
         if (success) {
-            Server server = servers.get(serverId);
-            if (server != null) {
-                logActionWithServer(event, actionFunction.apply(server), server.getName());
-            } else {
-                LOGGER.error("Couldn't find known server in all servers map");
-            }
+            logActionWithServer(event, action, server.getName());
         }
 
         event.editComponents(deferredActionsContainer(servers)).useComponentsV2().queue();
