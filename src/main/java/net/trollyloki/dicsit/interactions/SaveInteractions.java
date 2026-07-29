@@ -101,7 +101,7 @@ public final class SaveInteractions {
         ModalMapping name = event.getValue("name");
         String saveName = name != null ? name.getAsString() : null;
 
-        event.deferReply(isDashboard(event)).queue();
+        event.reply("Saving " + inlineServerDisplayName(server.getName()) + "...").setEphemeral(isDashboard(event)).queue();
 
         LOGGER.info("Saving {} as \"{}\"", serverNameForLog(server.getName()), saveName);
 
