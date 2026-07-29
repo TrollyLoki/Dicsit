@@ -481,59 +481,74 @@ public class GuildManager {
             return;
         }
 
-        // Clear deferred actions
-        server.setDeferredLoadSaveName(null);
-        server.setDeferredReload(false);
-        server.setDeferredRestart(false);
-        save();
-
-        // Execute deferred actions
         // Note that loading a new save and/or restarting the server also serves as a reload
-        if (loadSaveName != null) {
-            LOGGER.info("Executing deferred load of save \"{}\" on {}", loadSaveName, serverNameForLog(server.getName()));
+        if (restart) {
 
-            String saveFilename = safeMonospace(loadSaveName + SaveFileReader.EXTENSION);
-            InteractionUtils.requestAsyncWithMDC(server, "load " + saveFilename + " on", httpsApi -> {
-                httpsApi.loadSave(loadSaveName, false);
-            }).whenCompleteAsync(withMDC((_, throwable) -> {
-                if (throwable != null) {
-                    logAlert(InteractionUtils.exceptionMessage(throwable));
-                } else {
-                    log("Successfully loaded " + saveFilename + " on " + inlineServerDisplayName(server.getName()));
-                }
+            // Clear deferred restart and potential reload
+            server.setDeferredRestart(false);
+            server.setDeferredReload(false);
+            save();
 
-                if (restart) {
-                    // Restart AFTER loading the new save so we don't have to wait for the full restart to finish
-                    // The restart process creates a brand new save so the server will not revert to the previous save
-                    executeDeferredRestart(serverId, server);
-                }
-            }));
-        } else if (restart) {
             executeDeferredRestart(serverId, server);
-        } else {
-            LOGGER.info("Executing deferred reload of {}", serverNameForLog(server.getName()));
+            // Potential deferred load will be executed once the server fully restarts and this method is called again
 
-            InteractionUtils.reloadAsyncWithMDC(server).whenCompleteAsync(withMDC((verified, throwable) -> {
-                if (throwable != null) {
-                    logAlert(InteractionUtils.exceptionMessage(throwable));
-                } else if (!verified) {
-                    logAlert("Reload verification for " + inlineServerDisplayName(server.getName()) + " failed, try reloading again");
-                } else {
-                    log("Successfully reloaded " + inlineServerDisplayName(server.getName()));
-                }
-            }));
+        } else {
+
+            // Clear all deferred actions
+            server.setDeferredLoadSaveName(null);
+            server.setDeferredReload(false);
+            server.setDeferredRestart(false);
+            save();
+
+            if (loadSaveName != null) {
+                executeDeferredLoad(server, loadSaveName);
+            } else {
+                executeDeferredReload(server);
+            }
+
         }
     }
 
     private void executeDeferredRestart(UUID serverId, Server server) {
         LOGGER.info("Executing deferred restart of {}", serverNameForLog(server.getName()));
 
-        InteractionUtils.saveAndRestartAsyncWithMDC(server).whenCompleteAsync(withMDC((_, throwable) -> {
+        InteractionUtils.saveAndRestartAsyncWithMDC(server).thenComposeAsync(withMDC(_ -> {
+            log("Restarting " + inlineServerDisplayName(server.getName()));
+            return waitForServer(serverId);
+        })).whenCompleteAsync(withMDC((_, throwable) -> {
             if (throwable != null) {
                 logAlert(InteractionUtils.exceptionMessage(throwable));
             } else {
-                log("Restarting " + inlineServerDisplayName(server.getName()));
-                waitForServer(serverId).thenRunAsync(withMDC(() -> log("Successfully restarted " + inlineServerDisplayName(server.getName()))));
+                log("Successfully restarted " + inlineServerDisplayName(server.getName()));
+            }
+        }));
+    }
+
+    private void executeDeferredLoad(ServerData server, String saveName) {
+        LOGGER.info("Executing deferred load of save \"{}\" on {}", saveName, serverNameForLog(server.getName()));
+
+        String saveFilename = safeMonospace(saveName + SaveFileReader.EXTENSION);
+        InteractionUtils.requestAsyncWithMDC(server, "load " + saveFilename + " on", httpsApi -> {
+            httpsApi.loadSave(saveName, false);
+        }).whenCompleteAsync(withMDC((_, throwable) -> {
+            if (throwable != null) {
+                logAlert(InteractionUtils.exceptionMessage(throwable));
+            } else {
+                log("Successfully loaded " + saveFilename + " on " + inlineServerDisplayName(server.getName()));
+            }
+        }));
+    }
+
+    private void executeDeferredReload(ServerData server) {
+        LOGGER.info("Executing deferred reload of {}", serverNameForLog(server.getName()));
+
+        InteractionUtils.reloadAsyncWithMDC(server).whenCompleteAsync(withMDC((verified, throwable) -> {
+            if (throwable != null) {
+                logAlert(InteractionUtils.exceptionMessage(throwable));
+            } else if (!verified) {
+                logAlert("Reload verification for " + inlineServerDisplayName(server.getName()) + " failed, try reloading again");
+            } else {
+                log("Successfully reloaded " + inlineServerDisplayName(server.getName()));
             }
         }));
     }
