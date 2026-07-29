@@ -51,14 +51,15 @@ public final class DeferredActionsInteractions {
             Server server = entry.getValue();
 
             List<Button> buttons = new ArrayList<>(3);
-            if (server.getDeferredLoadSaveName() != null) {
-                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_LOAD_BUTTON_ID, serverId), "Cancel Load"));
+            if (server.isDeferredRestart()) {
+                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RESTART_BUTTON_ID, serverId), "Cancel Restarting"));
             }
             if (server.isDeferredReload()) {
-                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RELOAD_BUTTON_ID, serverId), "Cancel Reload"));
+                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RELOAD_BUTTON_ID, serverId), "Cancel Reloading"));
             }
-            if (server.isDeferredRestart()) {
-                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RESTART_BUTTON_ID, serverId), "Cancel Restart"));
+            String loadSaveName = server.getDeferredLoadSaveName();
+            if (loadSaveName != null) {
+                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_LOAD_BUTTON_ID, serverId), "Cancel Loading " + loadSaveName + SaveFileReader.EXTENSION));
             }
 
             if (!buttons.isEmpty()) {
