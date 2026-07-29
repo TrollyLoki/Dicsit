@@ -9,8 +9,9 @@ relying only on the vanilla HTTPS and Lightweight Query APIs.
 ### Highlights
 - Monitor live server status information from a single Discord channel
 - Receive automated alerts via Discord pings when a server goes down
-- Reload servers to update blueprints without requiring a forced restart
+- Reload servers to update blueprints without requiring a full restart
 - Upload save files to multiple servers simultaneously
+- Automatically defer actions until all players have disconnected
 - Download saves from multiple servers into one consolidated zip file
 - Check save file info and validity
 - Change server names, options, and passwords
