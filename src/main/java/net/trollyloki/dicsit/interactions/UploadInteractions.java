@@ -294,15 +294,16 @@ public final class UploadInteractions {
                         guildManager.cancelDeferredLoad(UUID.fromString(serverIdStrings.get(index)));
                     }
 
-                    logActionWithServer(callback, (load ? "loaded " : "uploaded ") + attachment.getUrl() + (load ? " on" : " to"), server.getName());
-
                     if (deferLoad) {
                         guildManager.deferLoad(UUID.fromString(serverIdStrings.get(index)), saveName);
 
-                        logActionWithServer(callback, "deferred loading " + safeMonospace(saveName + SaveFileReader.EXTENSION) + " on", server.getName());
+                        logActionWithServer(callback, "uploaded and deferred loading " + attachment.getUrl() + " on", server.getName());
 
                         return monospaceFilename + " will be loaded on " + inlineServerDisplayName(server.getName()) + " when there are no players connected";
                     } else {
+
+                        logActionWithServer(callback, (load ? "loaded " : "uploaded ") + attachment.getUrl() + (load ? " on" : " to"), server.getName());
+
                         return "Successfully " + (load ? "loaded " : "uploaded ") + monospaceFilename + (load ? " on " : " to ") + inlineServerDisplayName(server.getName());
                     }
                 })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
