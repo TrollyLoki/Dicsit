@@ -5,11 +5,14 @@ import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.trollyloki.dicsit.InteractionUtils;
 import net.trollyloki.dicsit.SaveInfo;
@@ -43,6 +46,8 @@ public final class SaveInteractions {
             SAVE_COMMAND_NAME = "save",
             SAVE_BUTTON_ID = "save",
             SAVE_MODAL_ID = "save";
+
+    private static final Emoji ERROR_EMOJI = Emoji.fromUnicode("❌");
 
     public static void onSaveCommand(SlashCommandInteractionEvent event) {
         Map<UUID, Server> servers = getAllServersIfAdmin(event, false, true);
@@ -123,7 +128,24 @@ public final class SaveInteractions {
 
             event.getHook().editOriginal(saveDownload.info.formatted(server.getName()))
                     .setFiles(FileUpload.fromData(saveDownload.data, saveDownload.info.name() + SaveFileReader.EXTENSION))
-                    .queue(message -> logActionWithServer(event, "downloaded " + message.getAttachments().getFirst().getUrl() + " from", server.getName()));
+                    .queue(
+                            withMDC(message -> {
+                                logActionWithServer(event, "downloaded " + message.getAttachments().getFirst().getUrl() + " from", server.getName());
+                            }),
+                            withMDC(throwable -> {
+                                LOGGER.error("Failed to upload save file attachment", throwable);
+
+                                String errorMessage;
+                                if (throwable instanceof ErrorResponseException error
+                                        && error.getErrorResponse() == ErrorResponse.REQUEST_ENTITY_TOO_LARGE) {
+                                    errorMessage = "Save was too large to attach";
+                                } else {
+                                    errorMessage = "Failed to attach save";
+                                }
+
+                                event.getHook().editOriginal(ERROR_EMOJI.getFormatted() + " " + errorMessage).queue();
+                            })
+                    );
 
         })).exceptionallyAsync(withMDC(throwable -> {
             event.getHook().editOriginal(InteractionUtils.exceptionMessage(throwable)).queue();
