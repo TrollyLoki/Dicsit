@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "net.trollyloki"
-version = "1.3.2-dev"
+version = "1.4.0"
 
 java {
     toolchain {
