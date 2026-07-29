@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.components.container.Container;
 import net.dv8tion.jda.api.components.container.ContainerChildComponent;
 import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.trollyloki.dicsit.GuildManager;
@@ -43,6 +44,7 @@ public final class DeferredActionsInteractions {
 
     private static MessageTopLevelComponent deferredActionsContainer(Map<UUID, Server> servers) {
         List<ContainerChildComponent> components = new ArrayList<>();
+        int totalComponentCount = 3; // include the outer container and the two header components that are added later
 
         for (Map.Entry<UUID, Server> entry : servers.entrySet()) {
             UUID serverId = entry.getKey();
@@ -60,6 +62,14 @@ public final class DeferredActionsInteractions {
             }
 
             if (!buttons.isEmpty()) {
+
+                // Ensure we aren't going to go over the component limit
+                totalComponentCount += 2 + buttons.size(); // header + action row + individual buttons
+                if (totalComponentCount >= Message.MAX_COMPONENT_COUNT_IN_COMPONENT_TREE) {
+                    components.add(TextDisplay.of("*Additional pending actions were truncated*"));
+                    break;
+                }
+
                 components.add(TextDisplay.of("### " + escapedServerName(server.getName())));
                 components.add(ActionRow.of(buttons));
             }
