@@ -253,9 +253,13 @@ public final class ReloadInteractions {
                     guildManager.cancelDeferredRestart(serverId);
                 }
 
-                String action = "re" + (shutdown ? "start" : "load") + "ed";
-                logActionWithServer(callback, action, server.getName());
-                return "Successfully " + action + " " + inlineServerDisplayName(server.getName());
+                if (shutdown) {
+                    guildManager.log("Successfully restarted " + inlineServerDisplayName(server.getName()));
+                    return "Successfully restarted " + inlineServerDisplayName(server.getName());
+                } else {
+                    logActionWithServer(callback, "reloaded", server.getName());
+                    return "Successfully reloaded " + inlineServerDisplayName(server.getName());
+                }
             })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                 messageLines.set(index, message);
                 synchronized (messageLines) {
