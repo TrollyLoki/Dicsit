@@ -92,6 +92,7 @@ Before executing any of these actions, the app automatically checks if any playe
 - Deferred **reloads** are **superseded** by deferred **loads or restarts**
 
 ## Deployment
+Precompiled Docker images can be downloaded from [GitHub Releases](https://github.com/TrollyLoki/Dicsit/releases) or [Docker Hub](https://hub.docker.com/r/trollyloki/dicsit).
 
 ### Environment Variables
 - `BOT_TOKEN` - Token from the Bot section of the [Discord Developer Portal](https://discord.com/developers/home) (required, the application will refuse to start if not set)
