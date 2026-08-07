@@ -137,7 +137,7 @@ public final class BackupInteractions {
                                 // Since save files are normally only 5~15 MW this shouldn't be too bad
                                 return new SaveDownload(saveInfo, saveData.readAllBytes());
                             } catch (IOException e) {
-                                throw new RuntimeException(e);
+                                throw new CompletionException(e);
                             }
                         });
 

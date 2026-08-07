@@ -41,6 +41,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -293,34 +295,56 @@ public final class UploadInteractions {
             for (int i = 0; i < servers.size(); i++) {
                 final int index = i;
                 Server server = servers.get(index);
+                UUID serverId = UUID.fromString(serverIdStrings.get(index));
 
                 LOGGER.info("Uploading save \"{}\" to {}", saveName, serverNameForLog(server.getName()));
 
-                requestAsyncWithMDC(server, "upload " + monospaceFilename + " to", httpsApi -> {
+                CompletableFuture<@Nullable Void> uploadFuture = requestAsyncWithMDC(server, "upload " + monospaceFilename + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {
-                        httpsApi.uploadSave(uploadStream, saveName, load, false);
+                        httpsApi.uploadSave(uploadStream, saveName, false, false);
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        throw new CompletionException(e);
                     }
-                }).thenApplyAsync(withMDC(_ -> {
-                    if (load) {
+                }).thenRunAsync(withMDC(() -> logActionWithServer(callback, "uploaded " + attachment.getUrl() + " to", server.getName())));
+
+                CompletableFuture<String> responseFuture;
+                if (load) {
+                    responseFuture = uploadFuture.thenComposeAsync(withMDC(_ -> {
+
+                        // Edit message with intermediate progress update
+                        messageLines.set(index, "Loading " + monospaceFilename + " on " + inlineServerDisplayName(server.getName()) + "...");
+                        synchronized (messageLines) {
+                            callback.getHook().editOriginal(String.join("\n", messageLines)).queue();
+                        }
+
+                        LOGGER.info("Loading save \"{}\" on {}", saveName, serverNameForLog(server.getName()));
+
+                        return requestAsyncWithMDC(server, "load " + monospaceFilename + " on", httpsApi -> {
+                            httpsApi.loadSave(saveName, false);
+                        });
+                    })).thenApplyAsync(withMDC(_ -> {
+
                         // Cancel previously deferred loads
-                        guildManager.cancelDeferredLoad(UUID.fromString(serverIdStrings.get(index)));
-                    }
+                        guildManager.cancelDeferredLoad(serverId);
 
-                    if (deferLoad) {
-                        guildManager.deferLoad(UUID.fromString(serverIdStrings.get(index)), saveName);
+                        logActionWithServer(callback, "loaded " + monospaceFilename + " on", server.getName());
+                        return "Successfully loaded " + monospaceFilename + " on " + inlineServerDisplayName(server.getName());
 
-                        logActionWithServer(callback, "uploaded and deferred loading " + attachment.getUrl() + " on", server.getName());
+                    }));
+                } else if (deferLoad) {
+                    responseFuture = uploadFuture.thenApplyAsync(withMDC(_ -> {
 
+                        // Defer load
+                        guildManager.deferLoad(serverId, saveName);
+
+                        logActionWithServer(callback, "deferred loading " + monospaceFilename + " on", server.getName());
                         return monospaceFilename + " will be loaded on " + inlineServerDisplayName(server.getName()) + " when there are no players connected";
-                    } else {
 
-                        logActionWithServer(callback, (load ? "loaded " : "uploaded ") + attachment.getUrl() + (load ? " on" : " to"), server.getName());
-
-                        return "Successfully " + (load ? "loaded " : "uploaded ") + monospaceFilename + (load ? " on " : " to ") + inlineServerDisplayName(server.getName());
-                    }
-                })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
+                    }));
+                } else {
+                    responseFuture = uploadFuture.thenApplyAsync(withMDC(_ -> "Successfully uploaded " + monospaceFilename + " to " + inlineServerDisplayName(server.getName())));
+                }
+                responseFuture.exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                     messageLines.set(index, message);
                     synchronized (messageLines) {
                         callback.getHook().editOriginal(String.join("\n", messageLines)).queue();
