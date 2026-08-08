@@ -41,12 +41,14 @@ public final class AnalyzeSaveInteractions {
 
     public static void onAnalyzeSaveFromMessage(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = findMessageAttachments(event);
-        if (attachments == null)
+        if (attachments.isEmpty()) {
+            event.reply("Could not find any files attached to that message").setEphemeral(true).queue();
             return;
+        }
 
         event.deferReply().queue();
 
-        LOGGER.info("Analyzing {} save file(s)", attachments.size());
+        LOGGER.info("Analyzing {} attachment(s)", attachments.size());
 
         List<CompletableFuture<List<? extends ContainerChildComponent>>> futures = attachments.stream().map(
                 attachment -> attachment.getProxy().download().thenApplyAsync(withMDC(downloadStream -> {

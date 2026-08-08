@@ -64,15 +64,10 @@ public final class InteractionUtils {
 
     private static final int[] DELAY_OPTIONS_SECONDS = {-1, 5, 10, 20, 30, 60, 2 * 60, 3 * 60, 4 * 60, 5 * 60, 10 * 60, 20 * 60, 30 * 60, 60 * 60};
 
-    public static @Nullable List<Message.Attachment> findMessageAttachments(MessageContextInteractionEvent event) {
+    public static List<Message.Attachment> findMessageAttachments(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = new ArrayList<>(event.getTarget().getAttachments());
         for (MessageSnapshot snapshot : event.getTarget().getMessageSnapshots()) {
             attachments.addAll(snapshot.getAttachments());
-        }
-
-        if (attachments.isEmpty()) {
-            event.reply("Could not find any files attached to that message").setEphemeral(true).queue();
-            return null;
         }
         return attachments;
     }

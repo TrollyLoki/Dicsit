@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
@@ -68,6 +69,9 @@ public final class UploadInteractions {
             UPLOAD_CONFIRM_BUTTON_ID = "upload-confirm",
             UPLOAD_AND_DEFER_LOAD_BUTTON_ID = "upload-defer";
 
+    private static final String EXPECTED_FILE_EXTENSION = SaveFileReader.EXTENSION.substring(1);
+    private static final Predicate<Message.Attachment> NOT_SAVE_FILE = attachment -> !EXPECTED_FILE_EXTENSION.equalsIgnoreCase(attachment.getFileExtension());
+
     private record AttachmentInfo(String url, String fileName) {
         AttachmentInfo(Message.Attachment attachment) {
             this(attachment.getUrl(), attachment.getFileName());
@@ -86,8 +90,11 @@ public final class UploadInteractions {
 
     public static void onUploadFromMessage(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = findMessageAttachments(event);
-        if (attachments == null)
+        attachments.removeIf(NOT_SAVE_FILE);
+        if (attachments.isEmpty()) {
+            event.reply("Could not find any save files attached to that message").setEphemeral(true).queue();
             return;
+        }
 
         ATTACHMENT_CACHE.put(event.getUser(), attachments.stream().map(AttachmentInfo::new).toList());
 
@@ -173,7 +180,14 @@ public final class UploadInteractions {
 
         AttachmentInfo attachmentInfo;
         switch (save.getType()) {
-            case FILE_UPLOAD -> attachmentInfo = new AttachmentInfo(save.getAsAttachmentList().getFirst());
+            case FILE_UPLOAD -> {
+                Message.Attachment attachment = save.getAsAttachmentList().getFirst();
+                if (NOT_SAVE_FILE.test(attachment)) {
+                    event.reply(attachment.getUrl() + " is not a save file").setEphemeral(true).queue();
+                    return;
+                }
+                attachmentInfo = new AttachmentInfo(attachment);
+            }
             case STRING_SELECT -> {
                 attachmentInfo = ATTACHMENT_CACHE.pop(event.getUser(), Integer.parseInt(save.getAsStringList().getFirst()));
                 if (attachmentInfo == null) {
