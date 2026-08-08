@@ -67,7 +67,7 @@ public final class AnalyzeSaveInteractions {
                             return saveFileInfoComponents(readSaveFileInfo(attachment.getFileName(), downloadStream));
                         } catch (Exception e) {
                             LOGGER.warn("Failed to read save file \"{}\"", attachment.getFileName(), e);
-                            return Collections.singletonList(TextDisplay.of(attachment.getUrl() + " is not a save file"));
+                            return Collections.singletonList(TextDisplay.of(attachment.getUrl() + " could not be read as a save file"));
                         }
 
                     }
@@ -151,7 +151,7 @@ public final class AnalyzeSaveInteractions {
 
         public TextDisplay toTextDisplay() {
             return TextDisplay.ofFormat("%s %s %s", status.getEmoji().getFormatted(), safeMonospace(name), switch (status) {
-                case NONE -> "is not a save file";
+                case NONE -> "could not be read as a save file";
                 case UNKNOWN -> "has an unknown checksum";
                 case INVALID -> "has an invalid checksum";
                 case VALID -> "has a valid checksum";
