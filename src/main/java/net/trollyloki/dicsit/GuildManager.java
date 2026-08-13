@@ -13,6 +13,7 @@ import net.trollyloki.dicsit.data.GuildData;
 import net.trollyloki.dicsit.data.ServerData;
 import net.trollyloki.dicsit.monitoring.ServerMonitor;
 import net.trollyloki.jicsit.save.SaveFileReader;
+import net.trollyloki.jicsit.server.https.exception.SaveFailedException;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static net.trollyloki.dicsit.AddressUtils.validateHostAddress;
 import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
@@ -502,7 +504,7 @@ public class GuildManager {
             server.setDeferredReload(false);
             save();
 
-            executeDeferredRestart(serverId, server);
+            executeDeferredRestart(serverId, server, 1);
             // Potential deferred load will be executed once the server fully restarts and this method is called again
 
         } else {
@@ -516,19 +518,33 @@ public class GuildManager {
             if (loadSaveName != null) {
                 executeDeferredLoad(server, loadSaveName);
             } else {
-                executeDeferredReload(server);
+                executeDeferredReload(server, 1);
             }
 
         }
     }
 
-    private void executeDeferredRestart(UUID serverId, Server server) {
+    private static boolean isSaveFailure(@Nullable Throwable throwable) {
+        if (throwable == null) return false;
+        Throwable formattedException = throwable.getCause(); // unwrap CompletionException
+        if (formattedException == null) return false;
+        Throwable actualException = formattedException.getCause(); // get actual underlying exception
+        return actualException instanceof SaveFailedException;
+    }
+
+    private void executeDeferredRestart(UUID serverId, ServerData server, int attempt) {
         LOGGER.info("Executing deferred restart of {}", serverNameForLog(server.getName()));
 
         InteractionUtils.saveAndRestartAsyncWithMDC(server).thenComposeAsync(withMDC(_ -> {
             log("Restarting " + inlineServerDisplayName(server.getName()));
             return waitForServer(serverId);
         })).whenCompleteAsync(withMDC((_, throwable) -> {
+            if (attempt < Dicsit.MAX_ACTION_ATTEMPTS && isSaveFailure(throwable)) {
+                CompletableFuture.delayedExecutor(Dicsit.ACTION_ATTEMPT_INTERVAL, TimeUnit.MILLISECONDS)
+                        .execute(withMDC(() -> executeDeferredRestart(serverId, server, attempt + 1)));
+                return;
+            }
+
             if (throwable != null) {
                 logAlert(InteractionUtils.exceptionMessage(throwable));
             } else {
@@ -552,10 +568,16 @@ public class GuildManager {
         }));
     }
 
-    private void executeDeferredReload(ServerData server) {
+    private void executeDeferredReload(ServerData server, int attempt) {
         LOGGER.info("Executing deferred reload of {}", serverNameForLog(server.getName()));
 
         InteractionUtils.reloadAsyncWithMDC(server).whenCompleteAsync(withMDC((verified, throwable) -> {
+            if (attempt < Dicsit.MAX_ACTION_ATTEMPTS && isSaveFailure(throwable)) {
+                CompletableFuture.delayedExecutor(Dicsit.ACTION_ATTEMPT_INTERVAL, TimeUnit.MILLISECONDS)
+                        .execute(withMDC(() -> executeDeferredReload(server, attempt + 1)));
+                return;
+            }
+
             if (throwable != null) {
                 logAlert(InteractionUtils.exceptionMessage(throwable));
             } else if (!verified) {

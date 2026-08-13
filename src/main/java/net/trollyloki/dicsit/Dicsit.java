@@ -66,6 +66,8 @@ public class Dicsit {
     public static final long OFFLINE_TIMEOUT_MILLIS;
     public static final long DEAD_TIMEOUT_MILLIS;
     public static final long DEAD_POLL_INTERVAL_MILLIS;
+    public static final long ACTION_ATTEMPT_INTERVAL;
+    public static final int MAX_ACTION_ATTEMPTS;
 
     static {
         String dataDirectory = System.getenv("DATA_DIRECTORY");
@@ -84,6 +86,12 @@ public class Dicsit {
 
         String deadPollInterval = System.getenv("DEAD_POLL_INTERVAL");
         DEAD_POLL_INTERVAL_MILLIS = deadPollInterval == null ? 10_000 : Long.parseLong(deadPollInterval);
+
+        String actionAttemptInterval = System.getenv("ACTION_ATTEMPT_INTERVAL");
+        ACTION_ATTEMPT_INTERVAL = actionAttemptInterval == null ? 3_000 : Long.parseLong(actionAttemptInterval);
+
+        String maxActionAttempts = System.getenv("MAX_ACTION_ATTEMPTS");
+        MAX_ACTION_ATTEMPTS = maxActionAttempts == null ? 5 : Integer.parseInt(maxActionAttempts);
     }
 
     private final Map<String, GuildManager> guildManagers = new ConcurrentHashMap<>();

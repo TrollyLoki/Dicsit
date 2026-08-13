@@ -96,16 +96,22 @@ Precompiled Docker images can be downloaded from [GitHub Releases](https://githu
 
 ### Environment Variables
 - `BOT_TOKEN` - Token from the Bot section of the [Discord Developer Portal](https://discord.com/developers/home) (required, the application will refuse to start if not set)
-- `DATA_DIRECTORY` - Path to the directory where settings and server info should be stored (defaults to "data" if not set)
-- `ACCEPT_LOCAL_ADDRESSES` - "true" to disable the address filter (Only set this variable if you need to test with a local server)
-- `POLL_INTERVAL` - Interval in milliseconds between Lightweight Query API poll requests (defaults to 500 milliseconds
-  if not set)
-- `OFFLINE_TIMEOUT` - Delay in milliseconds before a server that has stopped responding is considered offline (defaults
-  to 5 seconds if not set)
-- `DEAD_TIMEOUT` - Delay in milliseconds before a server that has stopped responding is considered dead (defaults to 60
-  seconds if not set)
-- `DEAD_POLL_INTERVAL` - Interval in milliseconds between poll requests to dead servers (defaults to 10 seconds if not
-  set)
+- `DATA_DIRECTORY` - Path to the directory where settings and server info should be stored
+  (defaults to "data" if not set)
+- `ACCEPT_LOCAL_ADDRESSES` - "true" to disable the address filter
+  (Only set this variable if you need to test with a local server)
+- `POLL_INTERVAL` - Interval in milliseconds between Lightweight Query API poll requests
+  (defaults to 500 milliseconds if not set)
+- `OFFLINE_TIMEOUT` - Delay in milliseconds before a server that has stopped responding is considered offline
+  (defaults to 5 seconds if not set)
+- `DEAD_TIMEOUT` - Delay in milliseconds before a server that has stopped responding is considered dead
+  (defaults to 60 seconds if not set)
+- `DEAD_POLL_INTERVAL` - Interval in milliseconds between poll requests to dead servers
+  (defaults to 10 seconds if not set)
+- `ACTION_ATTEMPT_INTERVAL` - Interval in milliseconds between deferred action execution attempts
+  (defaults to 3 seconds if not set)
+- `MAX_ACTION_ATTEMPTS` - Maximum number of deferred action execution attempts
+  (defaults to 5 if not set)
 
 ### Data Storage
 All persistent data is stored within the directory referred to by the `DATA_DIRECTORY` environment variable.
