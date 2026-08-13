@@ -1,7 +1,11 @@
 package net.trollyloki.dicsit;
 
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
@@ -413,6 +417,15 @@ public class GuildManager {
         }
 
         server.setDeferredRestart(true);
+        save();
+    }
+
+    public void cancelAllDeferredActions() {
+        for (ServerData server : data.getServers().values()) {
+            server.setDeferredLoadSaveName(null);
+            server.setDeferredReload(false);
+            server.setDeferredRestart(false);
+        }
         save();
     }
 

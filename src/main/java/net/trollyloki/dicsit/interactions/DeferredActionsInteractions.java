@@ -27,7 +27,10 @@ import java.util.function.Function;
 import static net.trollyloki.dicsit.FormattingUtils.escapedServerName;
 import static net.trollyloki.dicsit.FormattingUtils.safeMonospace;
 import static net.trollyloki.dicsit.InteractionListener.buildId;
-import static net.trollyloki.dicsit.InteractionUtils.*;
+import static net.trollyloki.dicsit.InteractionUtils.getAllServersIfAdmin;
+import static net.trollyloki.dicsit.InteractionUtils.getGuildManager;
+import static net.trollyloki.dicsit.InteractionUtils.logAction;
+import static net.trollyloki.dicsit.InteractionUtils.logActionWithServer;
 
 @NullMarked
 public final class DeferredActionsInteractions {
@@ -38,13 +41,14 @@ public final class DeferredActionsInteractions {
 
     public static final String
             DEFERRED_ACTIONS_COMMAND_NAME = "deferred",
+            CANCEL_ALL_DEFERRED_ACTIONS_BUTTON_ID = "deferred-cancel-all",
             CANCEL_DEFERRED_LOAD_BUTTON_ID = "deferred-cancel-load",
             CANCEL_DEFERRED_RELOAD_BUTTON_ID = "deferred-cancel-reload",
             CANCEL_DEFERRED_RESTART_BUTTON_ID = "deferred-cancel-restart";
 
     private static MessageTopLevelComponent deferredActionsContainer(Map<UUID, Server> servers) {
         List<ContainerChildComponent> components = new ArrayList<>();
-        int totalComponentCount = 3; // include the outer container and the two header components that are added later
+        int totalComponentCount = 5; // include the outer container + two header components + cancel all button and its action row
 
         for (Map.Entry<UUID, Server> entry : servers.entrySet()) {
             UUID serverId = entry.getKey();
@@ -82,6 +86,7 @@ public final class DeferredActionsInteractions {
         }
 
         components.addFirst(Separator.createDivider(Separator.Spacing.SMALL));
+        components.addFirst(ActionRow.of(Button.danger(CANCEL_ALL_DEFERRED_ACTIONS_BUTTON_ID, "Cancel All")));
         components.addFirst(TextDisplay.of("## Deferred Actions"));
         return Container.of(components);
     }
@@ -92,6 +97,17 @@ public final class DeferredActionsInteractions {
             return;
 
         event.replyComponents(deferredActionsContainer(servers)).useComponentsV2().setEphemeral(true).queue();
+    }
+
+    public static void onCancelAllDeferredActionsButton(ButtonInteractionEvent event) {
+        Map<UUID, Server> servers = getAllServersIfAdmin(event, true);
+        if (servers == null)
+            return;
+
+        getGuildManager(event).cancelAllDeferredActions();
+        logAction(event, "canceled all deferred actions");
+
+        event.editComponents(deferredActionsContainer(servers)).useComponentsV2().queue();
     }
 
     public static void onCancelDeferredLoadButton(ButtonInteractionEvent event, String serverIdString) {

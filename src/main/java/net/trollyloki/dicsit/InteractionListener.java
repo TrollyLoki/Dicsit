@@ -23,8 +23,14 @@ import static net.trollyloki.dicsit.interactions.AboutInteractions.onAboutComman
 import static net.trollyloki.dicsit.interactions.AddInteractions.*;
 import static net.trollyloki.dicsit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.AnalyzeSaveInteractions.onAnalyzeSaveFromMessage;
-import static net.trollyloki.dicsit.interactions.BackupInteractions.*;
-import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.*;
+import static net.trollyloki.dicsit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
+import static net.trollyloki.dicsit.interactions.BackupInteractions.BACKUP_MODAL_ID;
+import static net.trollyloki.dicsit.interactions.BackupInteractions.onBackupCommand;
+import static net.trollyloki.dicsit.interactions.BackupInteractions.onBackupModal;
+import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
+import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_MODAL_ID;
+import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.onChangePasswordButton;
+import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.onChangePasswordModal;
 import static net.trollyloki.dicsit.interactions.CreativeModeInteractions.*;
 import static net.trollyloki.dicsit.interactions.DeferredActionsInteractions.*;
 import static net.trollyloki.dicsit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
@@ -32,7 +38,10 @@ import static net.trollyloki.dicsit.interactions.InvalidateTokensInteractions.on
 import static net.trollyloki.dicsit.interactions.ListInteractions.*;
 import static net.trollyloki.dicsit.interactions.NewSessionInteractions.*;
 import static net.trollyloki.dicsit.interactions.ReloadInteractions.*;
-import static net.trollyloki.dicsit.interactions.RenameInteractions.*;
+import static net.trollyloki.dicsit.interactions.RenameInteractions.RENAME_BUTTON_ID;
+import static net.trollyloki.dicsit.interactions.RenameInteractions.RENAME_MODAL_ID;
+import static net.trollyloki.dicsit.interactions.RenameInteractions.onRenameButton;
+import static net.trollyloki.dicsit.interactions.RenameInteractions.onRenameModal;
 import static net.trollyloki.dicsit.interactions.SaveInteractions.*;
 import static net.trollyloki.dicsit.interactions.ServerOptionsInteractions.*;
 import static net.trollyloki.dicsit.interactions.SettingsInteractions.*;
@@ -160,6 +169,7 @@ public class InteractionListener extends ListenerAdapter {
                 case CREATIVE_ENABLE_BUTTON_ID -> onCreativeModeSettingEnableButton(event, id[1], id[2]);
                 case CHANGE_PASSWORD_BUTTON_ID -> onChangePasswordButton(event, id[1], id[2]);
                 case INVALIDATE_TOKENS_BUTTON_ID -> onInvalidateTokensButton(event, id[1]);
+                case CANCEL_ALL_DEFERRED_ACTIONS_BUTTON_ID -> onCancelAllDeferredActionsButton(event);
                 case CANCEL_DEFERRED_LOAD_BUTTON_ID -> onCancelDeferredLoadButton(event, id[1]);
                 case CANCEL_DEFERRED_RELOAD_BUTTON_ID -> onCancelDeferredReloadButton(event, id[1]);
                 case CANCEL_DEFERRED_RESTART_BUTTON_ID -> onCancelDeferredRestartButton(event, id[1]);
