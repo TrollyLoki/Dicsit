@@ -29,20 +29,30 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
+import java.awt.Color;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.security.cert.CertificateException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 
-import static net.trollyloki.dicsit.FormattingUtils.*;
+import static net.trollyloki.dicsit.FormattingUtils.defaultSaveName;
+import static net.trollyloki.dicsit.FormattingUtils.formatDuration;
+import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.dicsit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.dicsit.LoggingUtils.withMDC;
 
@@ -321,8 +331,13 @@ public final class InteractionUtils {
             event.getHook().sendMessage("Token is invalid").setEphemeral(true).queue();
             return false;
         } catch (Exception e) {
-            event.getHook().sendMessage("Failed to verify token").setEphemeral(true).queue();
             LOGGER.warn("Failed to verify authentication token for {}", serverNameForLog(serverName), e);
+
+            String reason = determineReasonForRequestFailure(e);
+            String message = "Failed to verify token";
+            if (reason != null) message += ": " + reason;
+
+            event.getHook().sendMessage(message).setEphemeral(true).queue();
             return false;
         }
 
@@ -358,11 +373,41 @@ public final class InteractionUtils {
                 message = "Unable to " + message + ": " + apiException.getMessage();
                 LOGGER.warn("Unable to execute request on {}: {} ({})", serverNameForLog(server.getName()), apiException.getMessage(), apiException.getErrorCode());
             } else {
+                String reason = determineReasonForRequestFailure(exception.getCause());
                 message = "Failed to " + message;
+                if (reason != null) message += ": " + reason;
                 LOGGER.warn("Failed to execute request on {}", serverNameForLog(server.getName()), exception.getCause());
             }
             throw new FormattedException(message, exception.getCause());
         }));
+    }
+
+    public static @Nullable String determineReasonForRequestFailure(@Nullable Throwable throwable) {
+        // Go down the chain of causes looking for a known exception type
+        for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
+            switch (cause) {
+
+                case CertificateException _ -> {
+                    return "Server fingerprint is incorrect";
+                }
+
+                case ConnectException _ -> {
+                    return "Could not connect to the server";
+                }
+
+                case IOException _ -> {
+                    String message = cause.getMessage();
+                    if (message != null && message.startsWith("Connection reset")) {
+                        return "Connection to the server was terminated (possibly due to a crash)";
+                    }
+                }
+
+                default -> {
+                }
+
+            }
+        }
+        return null;
     }
 
     private static class FormattedException extends RuntimeException {
@@ -396,7 +441,7 @@ public final class InteractionUtils {
 
         return CompletableFuture.allOf(playerCountFutures.toArray(CompletableFuture[]::new)).handleAsync(withMDC((_, throwable) -> {
             if (throwable != null) {
-                return "Failed to check if players are connected";
+                return exceptionMessage(throwable);
             }
 
             int totalPlayerCount = playerCountFutures.stream().map(CompletableFuture::join).reduce(Integer::sum).orElse(0);

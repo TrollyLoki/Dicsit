@@ -1,6 +1,7 @@
 package net.trollyloki.dicsit.monitoring;
 
 import net.trollyloki.dicsit.GuildManager;
+import net.trollyloki.dicsit.InteractionUtils;
 import net.trollyloki.dicsit.Server;
 import net.trollyloki.jicsit.server.https.HttpsApi;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
@@ -19,7 +20,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static net.trollyloki.dicsit.LoggingUtils.*;
+import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.dicsit.LoggingUtils.serverThreadFactory;
+import static net.trollyloki.dicsit.LoggingUtils.setMDC;
 
 @NullMarked
 public class GameStateCache {
@@ -132,7 +135,8 @@ public class GameStateCache {
         } catch (Exception e) {
             LOGGER.warn("Failed to query game state of {}", serverNameForLog(server.getName()), e);
 
-            set(null, "Failed to query game state");
+            String reason = InteractionUtils.determineReasonForRequestFailure(e);
+            set(null, reason != null ? reason : "Failed to query game state");
 
         }
 
