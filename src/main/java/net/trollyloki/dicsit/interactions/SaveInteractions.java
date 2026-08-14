@@ -74,7 +74,7 @@ public final class SaveInteractions {
             serverComponent = TextDisplay.of("Creating save on " + inlineServerDisplayName(entry.getValue().getName()));
         } else {
             customId = SAVE_MODAL_ID;
-            serverComponent = Label.of("Server", serverSelectMenu("server", servers)
+            serverComponent = Label.of("Server", serverSelectMenu("server", servers, true)
                     .setPlaceholder("Select a server")
                     .build());
         }

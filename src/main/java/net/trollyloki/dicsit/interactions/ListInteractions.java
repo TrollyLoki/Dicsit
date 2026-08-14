@@ -39,7 +39,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static net.trollyloki.dicsit.FormattingUtils.*;
+import static net.trollyloki.dicsit.FormattingUtils.escapedServerName;
+import static net.trollyloki.dicsit.FormattingUtils.formatDuration;
+import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.dicsit.InteractionListener.buildId;
 import static net.trollyloki.dicsit.InteractionUtils.*;
 import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
@@ -126,7 +128,7 @@ public final class ListInteractions {
         Map<UUID, Server> servers = getGuildManager(interaction).getServers();
         return ActionRow.of((servers.isEmpty()
                 ? StringSelectMenu.create("null").addOption("null", "null").setPlaceholder("No servers added").setDisabled(true)
-                : serverSelectMenu(LIST_SELECT_ID, servers).setPlaceholder("Select a server to view details")
+                : serverSelectMenu(LIST_SELECT_ID, servers, false).setPlaceholder("Select a server to view details")
         ).build());
     }
 

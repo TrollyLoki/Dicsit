@@ -139,7 +139,7 @@ public final class UploadInteractions {
             serversComponent = TextDisplay.of("Uploading save to " + inlineServerDisplayName(entry.getValue().getName()));
         } else {
             customId = UPLOAD_MODAL_ID;
-            serversComponent = Label.of("Servers", "The server(s) that the save should be uploaded to", serverSelectMenu("servers", servers)
+            serversComponent = Label.of("Servers", "The server(s) that the save should be uploaded to", serverSelectMenu("servers", servers, false)
                     .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
                     .setPlaceholder("Select one or more servers")
                     .build());

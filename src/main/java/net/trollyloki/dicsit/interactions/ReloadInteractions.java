@@ -75,7 +75,7 @@ public final class ReloadInteractions {
                 : Modal.create(RELOAD_MODAL_ID, "Reload Session");
         event.replyModal(modal.addComponents(
                 Label.of("Servers", "The server(s) that should be re" + (shutdown ? "start" : "load") + "ed",
-                        serverSelectMenu("servers", servers)
+                        serverSelectMenu("servers", servers, !shutdown)
                                 .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
                                 .setPlaceholder("Select one or more servers")
                                 .build())

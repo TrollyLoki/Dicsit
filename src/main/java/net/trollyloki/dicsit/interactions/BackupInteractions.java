@@ -13,7 +13,11 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.FileUpload;
-import net.trollyloki.dicsit.*;
+import net.trollyloki.dicsit.IndependentRateLimiter;
+import net.trollyloki.dicsit.InteractionUtils;
+import net.trollyloki.dicsit.MessageLinesUpdater;
+import net.trollyloki.dicsit.SaveInfo;
+import net.trollyloki.dicsit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -24,7 +28,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -58,7 +66,7 @@ public final class BackupInteractions {
 
         event.replyModal(Modal.create(BACKUP_MODAL_ID, "Create Backup").addComponents(
                 Label.of("Servers", "The server(s) that should be backed up",
-                        serverSelectMenu("servers", servers)
+                        serverSelectMenu("servers", servers, true)
                                 .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
                                 .setPlaceholder("Select one or more servers")
                                 .setDefaultValues(servers.keySet().stream().limit(SelectMenu.OPTIONS_MAX_AMOUNT).map(UUID::toString).toList())

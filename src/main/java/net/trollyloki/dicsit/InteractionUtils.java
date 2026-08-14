@@ -214,17 +214,22 @@ public final class InteractionUtils {
         return TextInput.create(customId, TextInputStyle.SHORT).setMaxLength(32);
     }
 
-    public static StringSelectMenu.Builder serverSelectMenu(String customId, Map<?, Server> servers) {
+    public static StringSelectMenu.Builder serverSelectMenu(String customId, Map<?, Server> servers, boolean forSaving) {
         StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
 
         int count = 0;
         for (Map.Entry<?, Server> entry : servers.entrySet()) {
-            if (count == StringSelectMenu.OPTIONS_MAX_AMOUNT) {
-                LOGGER.warn("Truncated server select options from {} to {}", servers.size(), count);
-                break;
+            if (forSaving && entry.getValue().isDisableSaving()) continue;
+
+            if (builder.getOptions().size() < StringSelectMenu.OPTIONS_MAX_AMOUNT) {
+                builder.addOption(serverDisplayName(entry.getValue().getName()), entry.getKey().toString());
             }
-            builder.addOption(serverDisplayName(entry.getValue().getName()), entry.getKey().toString());
+
             count++;
+        }
+
+        if (count > builder.getOptions().size()) {
+            LOGGER.warn("Truncated server select options from {} to {}", count, builder.getOptions().size());
         }
 
         return builder;
