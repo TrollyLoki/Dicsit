@@ -669,7 +669,7 @@ public class GuildManager {
         LOGGER.info("Executing deferred reload of {}", serverNameForLog(server.getName()));
 
         InteractionUtils.reloadAsyncWithMDC(server).whenCompleteAsync(withMDC((verified, throwable) -> {
-            if (attempt < Dicsit.MAX_ACTION_ATTEMPTS && isSaveFailure(throwable)) {
+            if (attempt < Dicsit.MAX_ACTION_ATTEMPTS && (!verified || isSaveFailure(throwable))) {
                 CompletableFuture.delayedExecutor(Dicsit.ACTION_ATTEMPT_INTERVAL, TimeUnit.MILLISECONDS)
                         .execute(withMDC(() -> executeDeferredReload(server, future, attempt + 1)));
                 return;
