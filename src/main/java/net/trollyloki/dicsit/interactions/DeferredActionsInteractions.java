@@ -56,14 +56,14 @@ public final class DeferredActionsInteractions {
 
             List<Button> buttons = new ArrayList<>(3);
             if (server.isDeferredRestart()) {
-                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RESTART_BUTTON_ID, serverId), "Cancel Restarting"));
+                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RESTART_BUTTON_ID, serverId, true), "Cancel Restarting"));
             }
             if (server.isDeferredReload()) {
-                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RELOAD_BUTTON_ID, serverId), "Cancel Reloading"));
+                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_RELOAD_BUTTON_ID, serverId, true), "Cancel Reloading"));
             }
             String loadSaveName = server.getDeferredLoadSaveName();
             if (loadSaveName != null) {
-                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_LOAD_BUTTON_ID, serverId), "Cancel Loading " + loadSaveName + SaveFileReader.EXTENSION));
+                buttons.add(Button.secondary(buildId(CANCEL_DEFERRED_LOAD_BUTTON_ID, serverId, true), "Cancel Loading " + loadSaveName + SaveFileReader.EXTENSION));
             }
 
             if (!buttons.isEmpty()) {
@@ -110,25 +110,25 @@ public final class DeferredActionsInteractions {
         event.editComponents(deferredActionsContainer(servers)).useComponentsV2().queue();
     }
 
-    public static void onCancelDeferredLoadButton(ButtonInteractionEvent event, String serverIdString) {
-        onCancelDeferredActionHelper(event, serverIdString, GuildManager::cancelDeferredLoad, server ->
+    public static void onCancelDeferredLoadButton(ButtonInteractionEvent event, String serverIdString, boolean edit) {
+        onCancelDeferredActionHelper(event, serverIdString, edit, GuildManager::cancelDeferredLoad, server ->
                 "canceled the deferred load of " + safeMonospace(server.getDeferredLoadSaveName() + SaveFileReader.EXTENSION) + " on"
         );
     }
 
-    public static void onCancelDeferredReloadButton(ButtonInteractionEvent event, String serverIdString) {
-        onCancelDeferredActionHelper(event, serverIdString, GuildManager::cancelDeferredReload, server ->
+    public static void onCancelDeferredReloadButton(ButtonInteractionEvent event, String serverIdString, boolean edit) {
+        onCancelDeferredActionHelper(event, serverIdString, edit, GuildManager::cancelDeferredReload, server ->
                 "canceled the deferred reload of"
         );
     }
 
-    public static void onCancelDeferredRestartButton(ButtonInteractionEvent event, String serverIdString) {
-        onCancelDeferredActionHelper(event, serverIdString, GuildManager::cancelDeferredRestart, server ->
+    public static void onCancelDeferredRestartButton(ButtonInteractionEvent event, String serverIdString, boolean edit) {
+        onCancelDeferredActionHelper(event, serverIdString, edit, GuildManager::cancelDeferredRestart, server ->
                 "canceled the deferred restart of"
         );
     }
 
-    private static void onCancelDeferredActionHelper(ButtonInteractionEvent event, String serverIdString, BiPredicate<GuildManager, UUID> cancelMethod, Function<Server, String> actionFunction) {
+    private static void onCancelDeferredActionHelper(ButtonInteractionEvent event, String serverIdString, boolean edit, BiPredicate<GuildManager, UUID> cancelMethod, Function<Server, String> actionFunction) {
         Map<UUID, Server> servers = getAllServersIfAdmin(event, true);
         if (servers == null)
             return;
@@ -147,7 +147,11 @@ public final class DeferredActionsInteractions {
             logActionWithServer(event, action, server.getName());
         }
 
-        event.editComponents(deferredActionsContainer(servers)).useComponentsV2().queue();
+        if (edit) {
+            event.editComponents(deferredActionsContainer(servers)).useComponentsV2().queue();
+        } else {
+            event.deferEdit().queue();
+        }
     }
 
 }

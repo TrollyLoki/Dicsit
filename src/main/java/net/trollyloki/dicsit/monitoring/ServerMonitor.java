@@ -74,7 +74,7 @@ public class ServerMonitor implements Closeable {
         this.server = server;
 
         gameStateCache = new GameStateCache(guildManager, serverId, server);
-        infoCache = new ServerInfoCache(guildManager, serverId, server.hasToken(), server.isDisableSaving());
+        infoCache = new ServerInfoCache(guildManager, serverId, server.hasToken(), server.isDisableSaving(), server.getDeferredLoadSaveName(), server.isDeferredReload(), server.isDeferredRestart());
 
         requestServerStateExecutor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "State Request Thread"));
         requestServerStateExecutor.submit(this::requestServerState);

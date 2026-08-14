@@ -13,6 +13,7 @@ import net.dv8tion.jda.api.utils.TimeFormat;
 import net.dv8tion.jda.api.utils.Timestamp;
 import net.trollyloki.dicsit.GuildManager;
 import net.trollyloki.dicsit.interactions.ChangePasswordInteractions;
+import net.trollyloki.jicsit.save.SaveFileReader;
 import net.trollyloki.jicsit.server.https.ServerGameState;
 import net.trollyloki.jicsit.server.query.ServerStatus;
 import org.jspecify.annotations.NullMarked;
@@ -21,16 +22,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.UUID;
 
-import static net.trollyloki.dicsit.FormattingUtils.*;
+import static net.trollyloki.dicsit.FormattingUtils.buildLink;
+import static net.trollyloki.dicsit.FormattingUtils.escapeAll;
+import static net.trollyloki.dicsit.FormattingUtils.escapedServerName;
+import static net.trollyloki.dicsit.FormattingUtils.formatGameDuration;
 import static net.trollyloki.dicsit.InteractionListener.DASHBOARD_REFRESH_BUTTON_ID;
 import static net.trollyloki.dicsit.InteractionListener.buildId;
-import static net.trollyloki.dicsit.InteractionUtils.*;
+import static net.trollyloki.dicsit.InteractionUtils.GREEN_ACCENT;
+import static net.trollyloki.dicsit.InteractionUtils.RED_ACCENT;
+import static net.trollyloki.dicsit.InteractionUtils.YELLOW_ACCENT;
 import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.dicsit.interactions.AddInteractions.CLAIM_BUTTON_ID;
 import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
 import static net.trollyloki.dicsit.interactions.CreativeModeInteractions.CREATIVE_MODE_BUTTON_ID;
+import static net.trollyloki.dicsit.interactions.DeferredActionsInteractions.CANCEL_DEFERRED_LOAD_BUTTON_ID;
+import static net.trollyloki.dicsit.interactions.DeferredActionsInteractions.CANCEL_DEFERRED_RELOAD_BUTTON_ID;
+import static net.trollyloki.dicsit.interactions.DeferredActionsInteractions.CANCEL_DEFERRED_RESTART_BUTTON_ID;
 import static net.trollyloki.dicsit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.dicsit.interactions.ListInteractions.AUTHENTICATE_BUTTON_ID;
 import static net.trollyloki.dicsit.interactions.NewSessionInteractions.NEW_SESSION_BUTTON_ID;
@@ -61,14 +74,20 @@ public class ServerInfoCache {
 
     private boolean authenticated;
     private boolean disableSaving;
+    private @Nullable String deferredLoadSaveName;
+    private boolean deferredReload;
+    private boolean deferredRestart;
 
-    public ServerInfoCache(GuildManager guildManager, UUID serverId, boolean authenticated, boolean disableSaving) {
+    public ServerInfoCache(GuildManager guildManager, UUID serverId, boolean authenticated, boolean disableSaving, @Nullable String deferredLoadSaveName, boolean deferredReload, boolean deferredRestart) {
         this.serverId = serverId;
 
         this.dashboardUpdater = new DashboardUpdater(guildManager, serverId);
 
         this.authenticated = authenticated;
         this.disableSaving = disableSaving;
+        this.deferredLoadSaveName = deferredLoadSaveName;
+        this.deferredReload = deferredReload;
+        this.deferredRestart = deferredRestart;
     }
 
     public synchronized void setInfo(@Nullable String name, int build, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
@@ -107,6 +126,33 @@ public class ServerInfoCache {
             return;
 
         this.disableSaving = disableSaving;
+
+        updateDashboardMessage();
+    }
+
+    public synchronized void setDeferredLoadSaveName(@Nullable String deferredLoadSaveName) {
+        if (Objects.equals(deferredLoadSaveName, this.deferredLoadSaveName))
+            return;
+
+        this.deferredLoadSaveName = deferredLoadSaveName;
+
+        updateDashboardMessage();
+    }
+
+    public synchronized void setDeferredReload(boolean deferredReload) {
+        if (deferredReload == this.deferredReload)
+            return;
+
+        this.deferredReload = deferredReload;
+
+        updateDashboardMessage();
+    }
+
+    public synchronized void setDeferredRestart(boolean deferredRestart) {
+        if (deferredRestart == this.deferredRestart)
+            return;
+
+        this.deferredRestart = deferredRestart;
 
         updateDashboardMessage();
     }
@@ -196,6 +242,22 @@ public class ServerInfoCache {
             if (!gameRow.isEmpty()) components.add(ActionRow.of(gameRow));
             if (!optionsRow.isEmpty()) components.add(ActionRow.of(optionsRow));
             if (!passwordsRow.isEmpty()) components.add(ActionRow.of(passwordsRow));
+        }
+
+        List<Button> deferredActionButtons = new ArrayList<>(3);
+        if (deferredRestart) {
+            deferredActionButtons.add(Button.secondary(buildId(CANCEL_DEFERRED_RESTART_BUTTON_ID, serverId, false), "Cancel Restarting"));
+        }
+        if (deferredReload) {
+            deferredActionButtons.add(Button.secondary(buildId(CANCEL_DEFERRED_RELOAD_BUTTON_ID, serverId, false), "Cancel Reloading"));
+        }
+        if (deferredLoadSaveName != null) {
+            deferredActionButtons.add(Button.secondary(buildId(CANCEL_DEFERRED_LOAD_BUTTON_ID, serverId, false), "Cancel Loading " + deferredLoadSaveName + SaveFileReader.EXTENSION));
+        }
+        if (!deferredActionButtons.isEmpty()) {
+            components.add(Separator.createDivider(Separator.Spacing.SMALL));
+            components.add(TextDisplay.of("### Deferred Actions"));
+            components.add(ActionRow.of(deferredActionButtons));
         }
 
         return Container.of(components).withAccentColor(switch (status) {

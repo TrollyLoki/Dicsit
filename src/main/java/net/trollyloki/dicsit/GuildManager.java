@@ -14,6 +14,7 @@ import net.dv8tion.jda.api.utils.MarkdownUtil;
 import net.dv8tion.jda.api.utils.Timestamp;
 import net.trollyloki.dicsit.data.GuildData;
 import net.trollyloki.dicsit.data.ServerData;
+import net.trollyloki.dicsit.monitoring.ServerInfoCache;
 import net.trollyloki.dicsit.monitoring.ServerMonitor;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import net.trollyloki.jicsit.server.https.exception.SaveFailedException;
@@ -444,6 +445,10 @@ public class GuildManager {
 
         server.setDeferredLoadSaveName(saveName);
         save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setDeferredLoadSaveName(saveName);
+
     }
 
     public void deferReload(UUID serverId) {
@@ -455,6 +460,10 @@ public class GuildManager {
 
         server.setDeferredReload(true);
         save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setDeferredReload(true);
+
     }
 
     public void deferRestart(UUID serverId) {
@@ -466,6 +475,10 @@ public class GuildManager {
 
         server.setDeferredRestart(true);
         save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setDeferredRestart(true);
+
     }
 
     public void cancelAllDeferredActions() {
@@ -475,6 +488,14 @@ public class GuildManager {
             server.setDeferredRestart(false);
         }
         save();
+
+        for (ServerMonitor monitor : monitors.values()) {
+            ServerInfoCache infoCache = monitor.getInfoCache();
+            infoCache.setDeferredLoadSaveName(null);
+            infoCache.setDeferredReload(false);
+            infoCache.setDeferredRestart(false);
+        }
+
     }
 
     public boolean cancelDeferredLoad(UUID serverId) {
@@ -490,6 +511,10 @@ public class GuildManager {
 
         server.setDeferredLoadSaveName(null);
         save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setDeferredLoadSaveName(null);
+
         return true;
     }
 
@@ -506,6 +531,10 @@ public class GuildManager {
 
         server.setDeferredReload(false);
         save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setDeferredReload(false);
+
         return true;
     }
 
@@ -522,6 +551,10 @@ public class GuildManager {
 
         server.setDeferredRestart(false);
         save();
+
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) monitor.getInfoCache().setDeferredRestart(false);
+
         return true;
     }
 
@@ -541,6 +574,9 @@ public class GuildManager {
             // No deferred actions
             return CompletableFuture.completedFuture(false);
         }
+
+        ServerMonitor monitor = monitors.get(serverId);
+        ServerInfoCache infoCache = monitor != null ? monitor.getInfoCache() : null;
 
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
@@ -563,12 +599,19 @@ public class GuildManager {
             server.setDeferredRestart(false);
             save();
 
+            if (infoCache != null) infoCache.setDeferredLoadSaveName(null);
+
             if (loadSaveName != null) {
                 executeDeferredLoad(server, loadSaveName, future);
             } else {
                 executeDeferredReload(server, future, 1);
             }
 
+        }
+
+        if (infoCache != null) {
+            infoCache.setDeferredReload(false);
+            infoCache.setDeferredRestart(false);
         }
 
         return future;

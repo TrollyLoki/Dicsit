@@ -170,9 +170,12 @@ public class InteractionListener extends ListenerAdapter {
                 case CHANGE_PASSWORD_BUTTON_ID -> onChangePasswordButton(event, id[1], id[2]);
                 case INVALIDATE_TOKENS_BUTTON_ID -> onInvalidateTokensButton(event, id[1]);
                 case CANCEL_ALL_DEFERRED_ACTIONS_BUTTON_ID -> onCancelAllDeferredActionsButton(event);
-                case CANCEL_DEFERRED_LOAD_BUTTON_ID -> onCancelDeferredLoadButton(event, id[1]);
-                case CANCEL_DEFERRED_RELOAD_BUTTON_ID -> onCancelDeferredReloadButton(event, id[1]);
-                case CANCEL_DEFERRED_RESTART_BUTTON_ID -> onCancelDeferredRestartButton(event, id[1]);
+                case CANCEL_DEFERRED_LOAD_BUTTON_ID ->
+                        onCancelDeferredLoadButton(event, id[1], Boolean.parseBoolean(id[2]));
+                case CANCEL_DEFERRED_RELOAD_BUTTON_ID ->
+                        onCancelDeferredReloadButton(event, id[1], Boolean.parseBoolean(id[2]));
+                case CANCEL_DEFERRED_RESTART_BUTTON_ID ->
+                        onCancelDeferredRestartButton(event, id[1], Boolean.parseBoolean(id[2]));
                 default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
             }
         } finally {

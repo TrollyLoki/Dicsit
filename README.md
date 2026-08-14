@@ -86,7 +86,7 @@ Slash commands allow certain dashboard actions to be performed in other channels
 ### Deferred Actions
 Certain actions (notably reloading, restarting, or loading a new save) cause players to be kicked from the server.
 Before executing any of these actions, the app automatically checks if any players are connected and offers to defer execution of the action until all players have disconnected.
-- Pending deferred actions can be viewed and/or canceled via the `/deferred` command
+- Pending deferred actions can be viewed and/or canceled via the `/deferred` command or the dashboard
 - Deferred actions are automatically canceled if the same action is performed manually
 - Deferred **restarts** are executed **before** deferred **loads**
 - Deferred **reloads** are **superseded** by deferred **loads or restarts**
