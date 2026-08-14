@@ -2,6 +2,8 @@ package net.trollyloki.dicsit.interactions;
 
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.selections.SelectMenu;
+import net.dv8tion.jda.api.components.selections.SelectOption;
+import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Message;
@@ -59,6 +61,15 @@ public final class BackupInteractions {
 
     private static final Emoji ERROR_EMOJI = Emoji.fromUnicode("❌");
 
+    private static StringSelectMenu.Builder serverSelectMenuForBackup(@SuppressWarnings("SameParameterValue") String customId, Map<UUID, Server> servers) {
+        StringSelectMenu.Builder builder = serverSelectMenu(customId, servers, true);
+
+        builder.setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT);
+        builder.setDefaultValues(builder.getOptions().stream().map(SelectOption::getValue).toList());
+
+        return builder;
+    }
+
     public static void onBackupCommand(SlashCommandInteractionEvent event) {
         Map<UUID, Server> servers = getAllServersIfAdmin(event, true, true);
         if (servers == null)
@@ -66,10 +77,8 @@ public final class BackupInteractions {
 
         event.replyModal(Modal.create(BACKUP_MODAL_ID, "Create Backup").addComponents(
                 Label.of("Servers", "The server(s) that should be backed up",
-                        serverSelectMenu("servers", servers, true)
-                                .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
+                        serverSelectMenuForBackup("servers", servers)
                                 .setPlaceholder("Select one or more servers")
-                                .setDefaultValues(servers.keySet().stream().limit(SelectMenu.OPTIONS_MAX_AMOUNT).map(UUID::toString).toList())
                                 .build()),
                 Label.of("Backup Name", "The name of the backup file (individual save names will include both the server name and this name)",
                         TextInput.create("name", TextInputStyle.SHORT)
