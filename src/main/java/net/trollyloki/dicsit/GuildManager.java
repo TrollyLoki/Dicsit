@@ -525,11 +525,11 @@ public class GuildManager {
         return true;
     }
 
-    public synchronized void executeDeferredAction(UUID serverId) {
+    public synchronized CompletableFuture<Boolean> executeDeferredAction(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
         if (server == null) {
             LOGGER.warn("Could not execute deferred action for unknown server {}", serverId);
-            return;
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown server"));
         }
 
         // Check for deferred actions
@@ -539,8 +539,10 @@ public class GuildManager {
 
         if (loadSaveName == null && !reload && !restart) {
             // No deferred actions
-            return;
+            return CompletableFuture.completedFuture(false);
         }
+
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         // Note that loading a new save and/or restarting the server also serves as a reload
         if (restart) {
@@ -550,7 +552,7 @@ public class GuildManager {
             server.setDeferredReload(false);
             save();
 
-            executeDeferredRestart(serverId, server, 1);
+            executeDeferredRestart(serverId, server, future, 1);
             // Potential deferred load will be executed once the server fully restarts and this method is called again
 
         } else {
@@ -562,12 +564,14 @@ public class GuildManager {
             save();
 
             if (loadSaveName != null) {
-                executeDeferredLoad(server, loadSaveName);
+                executeDeferredLoad(server, loadSaveName, future);
             } else {
-                executeDeferredReload(server, 1);
+                executeDeferredReload(server, future, 1);
             }
 
         }
+
+        return future;
     }
 
     private static boolean isSaveFailure(@Nullable Throwable throwable) {
@@ -578,7 +582,7 @@ public class GuildManager {
         return actualException instanceof SaveFailedException;
     }
 
-    private void executeDeferredRestart(UUID serverId, ServerData server, int attempt) {
+    private void executeDeferredRestart(UUID serverId, ServerData server, CompletableFuture<Boolean> future, int attempt) {
         LOGGER.info("Executing deferred restart of {}", serverNameForLog(server.getName()));
 
         InteractionUtils.saveAndRestartAsyncWithMDC(server).thenComposeAsync(withMDC(_ -> {
@@ -587,19 +591,21 @@ public class GuildManager {
         })).whenCompleteAsync(withMDC((_, throwable) -> {
             if (attempt < Dicsit.MAX_ACTION_ATTEMPTS && isSaveFailure(throwable)) {
                 CompletableFuture.delayedExecutor(Dicsit.ACTION_ATTEMPT_INTERVAL, TimeUnit.MILLISECONDS)
-                        .execute(withMDC(() -> executeDeferredRestart(serverId, server, attempt + 1)));
+                        .execute(withMDC(() -> executeDeferredRestart(serverId, server, future, attempt + 1)));
                 return;
             }
 
             if (throwable != null) {
                 logAlert(InteractionUtils.exceptionMessage(throwable));
+                future.completeExceptionally(throwable);
             } else {
                 log("Successfully restarted " + inlineServerDisplayName(server.getName()));
+                future.complete(true);
             }
         }));
     }
 
-    private void executeDeferredLoad(ServerData server, String saveName) {
+    private void executeDeferredLoad(ServerData server, String saveName, CompletableFuture<Boolean> future) {
         LOGGER.info("Executing deferred load of save \"{}\" on {}", saveName, serverNameForLog(server.getName()));
 
         String saveFilename = safeMonospace(saveName + SaveFileReader.EXTENSION);
@@ -608,28 +614,33 @@ public class GuildManager {
         }).whenCompleteAsync(withMDC((_, throwable) -> {
             if (throwable != null) {
                 logAlert(InteractionUtils.exceptionMessage(throwable));
+                future.completeExceptionally(throwable);
             } else {
                 log("Successfully loaded " + saveFilename + " on " + inlineServerDisplayName(server.getName()));
+                future.complete(true);
             }
         }));
     }
 
-    private void executeDeferredReload(ServerData server, int attempt) {
+    private void executeDeferredReload(ServerData server, CompletableFuture<Boolean> future, int attempt) {
         LOGGER.info("Executing deferred reload of {}", serverNameForLog(server.getName()));
 
         InteractionUtils.reloadAsyncWithMDC(server).whenCompleteAsync(withMDC((verified, throwable) -> {
             if (attempt < Dicsit.MAX_ACTION_ATTEMPTS && isSaveFailure(throwable)) {
                 CompletableFuture.delayedExecutor(Dicsit.ACTION_ATTEMPT_INTERVAL, TimeUnit.MILLISECONDS)
-                        .execute(withMDC(() -> executeDeferredReload(server, attempt + 1)));
+                        .execute(withMDC(() -> executeDeferredReload(server, future, attempt + 1)));
                 return;
             }
 
             if (throwable != null) {
                 logAlert(InteractionUtils.exceptionMessage(throwable));
+                future.completeExceptionally(throwable);
             } else if (!verified) {
                 logAlert("Reload verification for " + inlineServerDisplayName(server.getName()) + " failed, try reloading again");
+                future.complete(false);
             } else {
                 log("Successfully reloaded " + inlineServerDisplayName(server.getName()));
+                future.complete(true);
             }
         }));
     }

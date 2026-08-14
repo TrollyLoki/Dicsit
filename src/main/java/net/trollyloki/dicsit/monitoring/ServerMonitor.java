@@ -61,6 +61,7 @@ public class ServerMonitor implements Closeable {
     private volatile long lastResponseNanos = System.nanoTime();
     private @Nullable ServerStatus lastStatus;
     private short lastGameStateVersion;
+    private @Nullable CompletableFuture<?> executingDeferredAction;
 
     public ServerMonitor(GuildManager guildManager, UUID serverId) {
         this.guildManager = guildManager;
@@ -216,9 +217,11 @@ public class ServerMonitor implements Closeable {
                 updateDashboardInfo(build, status, ping);
 
                 // Check if deferred actions can be executed now
-                ServerGameState gameState = gameStateCache.getGameState();
-                if (status == ServerStatus.IDLE || gameState != null && gameState.connectedPlayerCount() == 0) {
-                    guildManager.executeDeferredAction(serverId);
+                if (executingDeferredAction == null || executingDeferredAction.isDone()) {
+                    ServerGameState gameState = gameStateCache.getGameState();
+                    if (status == ServerStatus.IDLE || gameState != null && gameState.connectedPlayerCount() == 0) {
+                        executingDeferredAction = guildManager.executeDeferredAction(serverId);
+                    }
                 }
 
             });
