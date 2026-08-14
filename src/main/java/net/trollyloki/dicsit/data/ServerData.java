@@ -34,6 +34,7 @@ public class ServerData implements Server {
     private boolean deferredRestart;
 
     private @Nullable String dashboardMessageId;
+    private @Nullable String lastOfflineAlertMessageId;
     private @Nullable String serverChannelId;
 
     @JsonCreator
@@ -151,6 +152,14 @@ public class ServerData implements Server {
 
     public void setDashboardMessageId(@Nullable String dashboardMessageId) {
         this.dashboardMessageId = dashboardMessageId;
+    }
+
+    public @Nullable String getLastOfflineAlertMessageId() {
+        return lastOfflineAlertMessageId;
+    }
+
+    public void setLastOfflineAlertMessageId(@Nullable String lastOfflineAlertMessageId) {
+        this.lastOfflineAlertMessageId = lastOfflineAlertMessageId;
     }
 
     public @Nullable String getServerChannelId() {

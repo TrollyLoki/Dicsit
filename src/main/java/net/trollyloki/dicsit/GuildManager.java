@@ -9,6 +9,9 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.utils.MarkdownUtil;
+import net.dv8tion.jda.api.utils.Timestamp;
 import net.trollyloki.dicsit.data.GuildData;
 import net.trollyloki.dicsit.data.ServerData;
 import net.trollyloki.dicsit.monitoring.ServerMonitor;
@@ -30,6 +33,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static net.trollyloki.dicsit.AddressUtils.validateHostAddress;
 import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
@@ -215,7 +219,7 @@ public class GuildManager {
         log(user.getAsMention() + " " + action);
     }
 
-    public void logAlert(String alert) {
+    private void logAlert(String alert, @Nullable Consumer<Message> successConsumer) {
         GuildMessageChannel channel = getLogChannel();
         if (channel == null) return;
 
@@ -224,9 +228,51 @@ public class GuildManager {
         if (role != null) text += " " + role.getAsMention();
 
         try {
-            channel.sendMessage(text).setAllowedMentions(Collections.singleton(Message.MentionType.ROLE)).queue();
+            RestAction<Message> action = channel.sendMessage(text).setAllowedMentions(Collections.singleton(Message.MentionType.ROLE));
+            if (successConsumer == null) action.queue();
+            else action.queue(successConsumer);
         } catch (Exception e) {
             LOGGER.warn("Cannot send alert message", e);
+        }
+    }
+
+    public void logAlert(String alert) {
+        logAlert(alert, null);
+    }
+
+    public void logOfflineAlert(UUID serverId, Timestamp timestamp) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) return;
+
+        logAlert(inlineServerDisplayName(server.getName()) + " went down " + timestamp, message -> {
+            synchronized (server) {
+                server.setLastOfflineAlertMessageId(message.getId());
+                save();
+            }
+        });
+    }
+
+    public void strikeLastOfflineAlert(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) return;
+
+        synchronized (server) {
+            String messageId = server.getLastOfflineAlertMessageId();
+            if (messageId == null) return;
+
+            GuildMessageChannel channel = getLogChannel();
+            if (channel == null) return;
+
+            try {
+                channel.retrieveMessageById(messageId).flatMap(message -> message.editMessage(
+                        MarkdownUtil.strike(message.getContentRaw())
+                )).queue();
+            } catch (Exception e) {
+                LOGGER.warn("Cannot strike offline alert message", e);
+            }
+
+            server.setLastOfflineAlertMessageId(null);
+            save();
         }
     }
 

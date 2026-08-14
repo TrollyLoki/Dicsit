@@ -18,11 +18,20 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.net.SocketException;
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
-import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
-import static net.trollyloki.dicsit.LoggingUtils.*;
+import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.dicsit.LoggingUtils.serverThreadFactory;
+import static net.trollyloki.dicsit.LoggingUtils.setMDC;
 
 @NullMarked
 public class ServerMonitor implements Closeable {
@@ -154,6 +163,7 @@ public class ServerMonitor implements Closeable {
 
             // Reschedule offline alert
             if (offlineAlertFuture != null) offlineAlertFuture.cancel(true);
+            guildManager.strikeLastOfflineAlert(serverId);
             Duration alertDelay = guildManager.getOfflineAlertDelay(serverId);
             if (alertDelay != null) {
                 offlineAlertFuture = updateExecutor.schedule(() -> {
@@ -164,7 +174,7 @@ public class ServerMonitor implements Closeable {
                     }
 
                     long timeoutMillis = (System.nanoTime() - lastResponseNanos) / 1_000_000;
-                    guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went down " + TimeFormat.RELATIVE.before(timeoutMillis));
+                    guildManager.logOfflineAlert(serverId, TimeFormat.RELATIVE.before(timeoutMillis));
 
                 }, alertDelay.toNanos(), TimeUnit.NANOSECONDS);
             }
