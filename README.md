@@ -100,6 +100,7 @@ Precompiled Docker images can be downloaded from [GitHub Releases](https://githu
   (defaults to "data" if not set)
 - `ACCEPT_LOCAL_ADDRESSES` - "true" to disable the address filter
   (Only set this variable if you need to test with a local server)
+- `ACCEPT_DUPLICATE_SERVERS` - "true" to allow adding the same server multiple times
 - `POLL_INTERVAL` - Interval in milliseconds between Lightweight Query API poll requests
   (defaults to 500 milliseconds if not set)
 - `OFFLINE_TIMEOUT` - Delay in milliseconds before a server that has stopped responding is considered offline

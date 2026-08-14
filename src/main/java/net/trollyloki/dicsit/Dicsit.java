@@ -62,6 +62,7 @@ public class Dicsit {
     private static final @Nullable String BOT_TOKEN = System.getenv("BOT_TOKEN");
     public static final String DATA_DIRECTORY;
     public static final boolean ACCEPT_LOCAL_ADDRESSES;
+    public static final boolean ACCEPT_DUPLICATE_SERVERS;
     public static final long POLL_INTERVAL_MILLIS;
     public static final long OFFLINE_TIMEOUT_MILLIS;
     public static final long DEAD_TIMEOUT_MILLIS;
@@ -74,6 +75,8 @@ public class Dicsit {
         DATA_DIRECTORY = dataDirectory == null ? "data" : dataDirectory;
 
         ACCEPT_LOCAL_ADDRESSES = "true".equals(System.getenv("ACCEPT_LOCAL_ADDRESSES"));
+
+        ACCEPT_DUPLICATE_SERVERS = "true".equals(System.getenv("ACCEPT_DUPLICATE_SERVERS"));
 
         String pollInterval = System.getenv("POLL_INTERVAL");
         POLL_INTERVAL_MILLIS = pollInterval == null ? 500 : Long.parseLong(pollInterval);

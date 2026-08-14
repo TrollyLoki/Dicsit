@@ -11,10 +11,12 @@ import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.interactions.callbacks.IDeferrableCallback;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.dicsit.Dicsit;
+import net.trollyloki.dicsit.GuildManager;
 import net.trollyloki.dicsit.InteractionUtils;
 import net.trollyloki.dicsit.Server;
 import net.trollyloki.jicsit.server.https.CertificateUtils;
@@ -23,6 +25,7 @@ import net.trollyloki.jicsit.server.https.exception.PasswordlessLoginNotPossible
 import net.trollyloki.jicsit.server.query.QueryApi;
 import net.trollyloki.jicsit.server.query.ServerState;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,13 +71,28 @@ public final class AddInteractions {
         Integer port = event.getOption("port", OptionMapping::getAsInt);
 
         event.deferReply(true).queue();
-        tryAdd(event.getHook(), host, port != null ? port : 7777);
+        tryAdd(event, host, port != null ? port : 7777);
     }
 
-    private static void tryAdd(InteractionHook hook, String host, int port) {
+    private static @Nullable String check(GuildManager guildManager, String host, int port) {
+        if (Dicsit.ACCEPT_DUPLICATE_SERVERS) return null;
+
+        Server existingServer = guildManager.getServerByAddress(host, port);
+        if (existingServer == null) return null;
+
+        return inlineServerDisplayName(existingServer.getName()) + " has already been added";
+    }
+
+    private static void tryAdd(IDeferrableCallback callback, String host, int port) {
         InetAddress address = validateHostAddress(host);
         if (address == null) {
-            hook.editOriginal("Invalid address").queue();
+            callback.getHook().editOriginal("Invalid address").queue();
+            return;
+        }
+
+        String error = check(getGuildManager(callback), host, port);
+        if (error != null) {
+            callback.getHook().editOriginal(error).queue();
             return;
         }
 
@@ -86,7 +104,7 @@ public final class AddInteractions {
                 ServerState serverState = queryApi.pollServerState();
                 String fingerprint = CertificateUtils.getServerFingerprint(host, port);
 
-                hook.editOriginalComponents(
+                callback.getHook().editOriginalComponents(
                         TextDisplay.of("Is this the server you are trying to add?"),
                         Container.of(
                                 TextDisplay.of("## " + escapedServerName(serverState.name())),
@@ -100,7 +118,7 @@ public final class AddInteractions {
                 ).useComponentsV2().queue();
 
             } catch (Exception e) {
-                hook.editOriginalComponents(
+                callback.getHook().editOriginalComponents(
                         TextDisplay.of("Could not connect to that server"),
                         ActionRow.of(
                                 Button.primary(buildId(ADD_RETRY_BUTTON_ID, host, port), "Retry")
@@ -117,14 +135,22 @@ public final class AddInteractions {
         event.editComponents(ActionRow.of(
                 Button.primary("null", "Retrying...").asDisabled()
         )).queue();
-        tryAdd(event.getHook(), host, port);
+        tryAdd(event, host, port);
     }
 
     public static void onAddConfirmButton(ButtonInteractionEvent event, String host, int port, String fingerprint) {
         if (isNotAdmin(event))
             return;
 
-        Map.Entry<UUID, Server> serverEntry = getGuildManager(event).addServer(host, port, fingerprint);
+        GuildManager guildManager = getGuildManager(event);
+
+        String error = check(guildManager, host, port);
+        if (error != null) {
+            event.editComponents(TextDisplay.of(error)).useComponentsV2().queue();
+            return;
+        }
+
+        Map.Entry<UUID, Server> serverEntry = guildManager.addServer(host, port, fingerprint);
         UUID serverId = serverEntry.getKey();
         Server server = serverEntry.getValue();
 

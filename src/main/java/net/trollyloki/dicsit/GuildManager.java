@@ -289,6 +289,15 @@ public class GuildManager {
         return data.getServers().get(serverId);
     }
 
+    public @Nullable Server getServerByAddress(String host, int port) {
+        for (ServerData server : data.getServers().values()) {
+            if (server.getHost().equalsIgnoreCase(host) && server.getPort() == port) {
+                return server;
+            }
+        }
+        return null;
+    }
+
     public synchronized Map.Entry<UUID, Server> addServer(String host, int port, String fingerprint) {
         if (validateHostAddress(host) == null) {
             throw new IllegalArgumentException("Invalid host address");
