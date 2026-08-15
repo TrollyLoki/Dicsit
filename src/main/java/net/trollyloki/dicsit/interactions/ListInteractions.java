@@ -100,25 +100,25 @@ public final class ListInteractions {
                 TextDisplay.of("### Fingerprint\n```" + server.getFingerprint() + "```"),
                 ActionRow.of(buttons),
                 Separator.createDivider(Separator.Spacing.LARGE),
-                TextDisplay.of("### Offline Alert Delay"),
-                TextDisplay.of("If this server goes and stays offline for this amount of time, an alert will be sent to the log channel set in " + Dicsit.get().getCommand(SETTINGS_COMMAND_NAME).getAsMention() + " (currently " + logChannelString + ")"),
+                TextDisplay.of("### Offline Alert Delay" +
+                        "\nIf this server goes and stays offline for this amount of time, an alert will be sent to the log channel set in " + Dicsit.get().getCommand(SETTINGS_COMMAND_NAME).getAsMention() + " (currently " + logChannelString + ")"),
                 ActionRow.of(offlineAlertDelaySelect),
                 Separator.createInvisible(Separator.Spacing.SMALL),
-                TextDisplay.of("### Disable Saving"),
-                TextDisplay.of("If checked, saves will not be created on this server"),
+                TextDisplay.of("### Disable Saving" +
+                        "\nIf checked, saves will not be created on this server"),
                 ActionRow.of(Button.secondary(
                         buildId(DISABLE_SAVING_BUTTON_ID, serverIdString, !server.isDisableSaving()),
                         "Disable Saving"
                 ).withEmoji(server.isDisableSaving() ? CHECKBOX_CHECKED_EMOJI : CHECKBOX_EMPTY_EMOJI)),
                 Separator.createInvisible(Separator.Spacing.SMALL),
-                TextDisplay.of("### Server Channel"),
-                TextDisplay.of("Slash commands sent in this channel will select this server automatically"),
+                TextDisplay.of("### Server Channel" +
+                        "\nSlash commands sent in this channel will select this server automatically"),
                 ActionRow.of(serverChannelSelect.setPlaceholder("Select a channel").build()),
                 ActionRow.of(Button.secondary(buildId(UNSET_SERVER_CHANNEL_BUTTON_ID, serverIdString), "Unset Server Channel")
                         .withDisabled(currentServerChannel == null)),
                 Separator.createInvisible(Separator.Spacing.SMALL),
-                TextDisplay.of("### Allow Reloading"),
-                TextDisplay.of("If enabled, anyone can reload this server from its server channel"),
+                TextDisplay.of("### Allow Reloading" +
+                        "\nIf enabled, anyone can reload this server from its server channel"),
                 ActionRow.of(Button.secondary(
                         buildId(ALLOW_RELOADING_BUTTON_ID, serverIdString, !server.isAllowReloading()),
                         "Allow Reloading"
