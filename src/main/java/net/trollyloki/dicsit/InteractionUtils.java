@@ -358,6 +358,8 @@ public final class InteractionUtils {
             return false;
         }
 
+        boolean hadToken = server.hasToken();
+
         // Save token
         if (!getGuildManager(event).setServerToken(UUID.fromString(serverIdString), token)) {
             event.getHook().sendMessage("Failed to save token").setEphemeral(true).queue();
@@ -365,7 +367,7 @@ public final class InteractionUtils {
         }
 
         event.getHook().sendMessage("Authentication successful").setEphemeral(true).queue();
-        logActionWithServer(event, "added an authentication token for", serverName);
+        logActionWithServer(event, (hadToken ? "updated the" : "added an") + " authentication token for", serverName);
         return true;
     }
 
