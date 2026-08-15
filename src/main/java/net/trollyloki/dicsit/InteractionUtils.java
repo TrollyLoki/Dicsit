@@ -16,7 +16,9 @@ import net.dv8tion.jda.api.entities.messages.MessageSnapshot;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.interactions.Interaction;
+import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
+import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
 import net.trollyloki.jicsit.save.SaveHeader;
 import net.trollyloki.jicsit.save.Session;
 import net.trollyloki.jicsit.server.https.CommandResult;
@@ -28,10 +30,14 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.awt.Color;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.net.ConnectException;
 import java.security.cert.CertificateException;
 import java.time.Clock;
@@ -40,15 +46,20 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 import static net.trollyloki.dicsit.FormattingUtils.defaultSaveName;
 import static net.trollyloki.dicsit.FormattingUtils.formatDuration;
@@ -366,7 +377,18 @@ public final class InteractionUtils {
     }
 
     public static <T extends @Nullable Object> CompletableFuture<T> requestAsyncWithMDC(Server server, String actionString, Function<HttpsApi, T> action) {
-        return CompletableFuture.supplyAsync(withMDC(() -> {
+        return requestAsyncWithMDC(CompletableFuture::supplyAsync, server, actionString, action);
+    }
+
+    public static CompletableFuture<@Nullable Void> requestAsyncWithMDC(Server server, String actionString, Consumer<HttpsApi> action, Executor executor) {
+        return requestAsyncWithMDC(supplier -> CompletableFuture.supplyAsync(supplier, executor), server, actionString, httpsApi -> {
+            action.accept(httpsApi);
+            return null;
+        });
+    }
+
+    private static <T extends @Nullable Object> CompletableFuture<T> requestAsyncWithMDC(Function<Supplier<T>, CompletableFuture<T>> futureCreator, Server server, String actionString, Function<HttpsApi, T> action) {
+        return futureCreator.apply(withMDC(() -> {
             HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
             return action.apply(httpsApi);
         })).exceptionally(withMDC((Function<Throwable, T>) exception -> {
@@ -566,6 +588,88 @@ public final class InteractionUtils {
             }
 
         });
+    }
+
+    public static void splitAndConsumeAttachment(InteractionHook hook, NamedAttachmentProxy attachment, int count, BiConsumer<InputStream[], Executor> consumer) {
+        attachment.download().thenAcceptAsync(withMDC(downloadStream -> {
+
+            InputStream[] uploadStreams;
+            try {
+                uploadStreams = splitInputStream(downloadStream, count, e -> {
+                    hook.editOriginal("Failed to transfer data")
+                            .setComponents(Collections.emptySet()).queue();
+                    LOGGER.error("Error while streaming split save data", e);
+                });
+            } catch (Exception e) {
+                hook.editOriginal("Failed to start data transfer")
+                        .setComponents(Collections.emptySet()).queue();
+                LOGGER.error("Failed to split save data", e);
+                return;
+            }
+
+            consumer.accept(uploadStreams, Executors.newFixedThreadPool(count));
+
+        })).exceptionallyAsync(withMDC(throwable -> {
+            hook.editOriginal("Failed to retrieve attachment")
+                    .setComponents(Collections.emptySet()).queue();
+            LOGGER.error("Failed to retrieve attachment", throwable);
+            return null;
+        }));
+    }
+
+    private static InputStream[] splitInputStream(InputStream stream, int count, Consumer<Exception> errorCallback) throws IOException {
+        PipedInputStream[] inputStreams = new PipedInputStream[count];
+        PipedOutputStream[] outputStreams = new PipedOutputStream[count];
+        try {
+            for (int i = 0; i < count; i++) {
+                //noinspection resource: inputStreams are returned from this method
+                inputStreams[i] = new PipedInputStream();
+                outputStreams[i] = new PipedOutputStream(inputStreams[i]);
+            }
+        } catch (Exception e) {
+            for (PipedInputStream inputStream : inputStreams) {
+                try {
+                    inputStream.close();
+                } catch (Exception ignored) {
+                }
+            }
+            for (PipedOutputStream outputStream : outputStreams) {
+                try {
+                    outputStream.close();
+                } catch (Exception ignored) {
+                }
+            }
+            throw e;
+        }
+
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
+        new Thread(() -> {
+            MDC.setContextMap(mdc);
+            try (stream) {
+                byte[] buffer = new byte[1024];
+
+                int read;
+                do {
+                    read = stream.read(buffer);
+                    if (read > 0) {
+                        for (PipedOutputStream outputStream : outputStreams) {
+                            outputStream.write(buffer, 0, read);
+                        }
+                    }
+                } while (read >= 0);
+            } catch (Exception e) {
+                errorCallback.accept(e);
+            } finally {
+                for (PipedOutputStream outputStream : outputStreams) {
+                    try {
+                        outputStream.close();
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        }).start();
+
+        return inputStreams;
     }
 
 }

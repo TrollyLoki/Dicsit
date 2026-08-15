@@ -31,19 +31,15 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -269,7 +265,7 @@ public final class UploadInteractions {
         NamedAttachmentProxy attachment = attachmentInfo.getProxy();
         String monospaceFilename = safeMonospace(attachment.getFileName());
         String saveName = SaveFileReader.saveNameOf(attachment.getFileName());
-        attachment.download().thenAcceptAsync(withMDC(downloadStream -> {
+        splitAndConsumeAttachment(callback.getHook(), attachment, servers.size(), (uploadStreams, uploadExecutor) -> {
 
             List<String> messageLines = Collections.synchronizedList(servers.stream()
                     .map(server -> "Uploading " + monospaceFilename + " to " + inlineServerDisplayName(server.getName()) + "...")
@@ -278,18 +274,6 @@ public final class UploadInteractions {
             // No need to synchronize here, the list won't be changing yet
             callback.getHook().editOriginal(String.join("\n", messageLines))
                     .setComponents(Collections.emptySet()).queue();
-
-            InputStream[] uploadStreams;
-            try {
-                uploadStreams = splitInputStream(downloadStream, servers.size(), e -> {
-                    callback.getHook().editOriginal("Failed to transfer data").queue();
-                    LOGGER.error("Error while streaming split save data", e);
-                });
-            } catch (Exception e) {
-                callback.getHook().editOriginal("Failed to start data transfer").queue();
-                LOGGER.error("Failed to split save data", e);
-                return;
-            }
 
             GuildManager guildManager = getGuildManager(callback);
             for (int i = 0; i < servers.size(); i++) {
@@ -305,7 +289,7 @@ public final class UploadInteractions {
                     } catch (IOException e) {
                         throw new CompletionException(e);
                     }
-                }).thenRunAsync(withMDC(() -> logActionWithServer(callback, "uploaded " + attachment.getUrl() + " to", server.getName())));
+                }, uploadExecutor).thenRunAsync(withMDC(() -> logActionWithServer(callback, "uploaded " + attachment.getUrl() + " to", server.getName())));
 
                 CompletableFuture<String> responseFuture;
                 if (load) {
@@ -351,67 +335,7 @@ public final class UploadInteractions {
                     }
                 }));
             }
-        })).exceptionallyAsync(withMDC(throwable -> {
-            callback.getHook().editOriginal("Failed to retrieve attachment")
-                    .setComponents(Collections.emptySet()).queue();
-            LOGGER.error("Failed to retrieve attachment", throwable);
-            return null;
-        }));
-    }
-
-    private static InputStream[] splitInputStream(InputStream stream, int count, Consumer<Exception> errorCallback) throws IOException {
-        PipedInputStream[] inputStreams = new PipedInputStream[count];
-        PipedOutputStream[] outputStreams = new PipedOutputStream[count];
-        try {
-            for (int i = 0; i < count; i++) {
-                //noinspection resource: inputStreams are returned from this method
-                inputStreams[i] = new PipedInputStream();
-                outputStreams[i] = new PipedOutputStream(inputStreams[i]);
-            }
-        } catch (Exception e) {
-            for (PipedInputStream inputStream : inputStreams) {
-                try {
-                    inputStream.close();
-                } catch (Exception ignored) {
-                }
-            }
-            for (PipedOutputStream outputStream : outputStreams) {
-                try {
-                    outputStream.close();
-                } catch (Exception ignored) {
-                }
-            }
-            throw e;
-        }
-
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        new Thread(() -> {
-            MDC.setContextMap(mdc);
-            try (stream) {
-                byte[] buffer = new byte[1024];
-
-                int read;
-                do {
-                    read = stream.read(buffer);
-                    if (read > 0) {
-                        for (PipedOutputStream outputStream : outputStreams) {
-                            outputStream.write(buffer, 0, read);
-                        }
-                    }
-                } while (read >= 0);
-            } catch (Exception e) {
-                errorCallback.accept(e);
-            } finally {
-                for (PipedOutputStream outputStream : outputStreams) {
-                    try {
-                        outputStream.close();
-                    } catch (Exception ignored) {
-                    }
-                }
-            }
-        }).start();
-
-        return inputStreams;
+        });
     }
 
 }
