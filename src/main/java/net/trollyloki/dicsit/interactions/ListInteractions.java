@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import static net.trollyloki.dicsit.FormattingUtils.escapedServerName;
 import static net.trollyloki.dicsit.FormattingUtils.formatDuration;
 import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.dicsit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.dicsit.InteractionListener.buildId;
 import static net.trollyloki.dicsit.InteractionUtils.*;
 import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
@@ -124,19 +126,56 @@ public final class ListInteractions {
         );
     }
 
-    private static ActionRow serverSelectForDetails(Interaction interaction) {
+    private static List<ActionRow> serverSelectsForDetails(Interaction interaction) {
         Map<UUID, Server> servers = getGuildManager(interaction).getServers();
-        return ActionRow.of((servers.isEmpty()
-                ? StringSelectMenu.create("null").addOption("null", "null").setPlaceholder("No servers added").setDisabled(true)
-                : serverSelectMenu(LIST_SELECT_ID, servers, false).setPlaceholder("Select a server to view details")
-        ).build());
+
+        if (servers.isEmpty()) {
+            return Collections.singletonList(ActionRow.of(StringSelectMenu.create("null")
+                    .addOption("null", "null")
+                    .setDisabled(true)
+                    .setPlaceholder("No servers added")
+                    .build()
+            ));
+        }
+
+        // Create as many selects as necessary to include all servers
+        List<StringSelectMenu.Builder> builders = new ArrayList<>();
+        for (Map.Entry<?, Server> entry : servers.entrySet()) {
+            if (builders.isEmpty() || builders.getLast().getOptions().size() >= StringSelectMenu.OPTIONS_MAX_AMOUNT) {
+                builders.addLast(StringSelectMenu.create(buildId(LIST_SELECT_ID, builders.size()))
+                        .setPlaceholder("Select a server to view details"));
+            }
+
+            builders.getLast().addOption(serverDisplayName(entry.getValue().getName()), entry.getKey().toString());
+        }
+
+        // If there are multiple selects add numbers so they don't look duplicated
+        if (builders.size() > 1) {
+            for (int i = 0; i < builders.size(); i++) {
+                StringSelectMenu.Builder builder = builders.get(i);
+
+                int first = 1 + i * StringSelectMenu.OPTIONS_MAX_AMOUNT;
+                int last = Math.min((i + 1) * StringSelectMenu.OPTIONS_MAX_AMOUNT, servers.size());
+                builder.setPlaceholder(builder.getPlaceholder() + " (%d-%d)".formatted(first, last));
+
+            }
+        }
+
+        return builders.stream().map(builder -> ActionRow.of(builder.build())).toList();
     }
 
-    private static MessageTopLevelComponent[] detailsComponents(Interaction interaction, String serverIdString, Server server) {
-        return new MessageTopLevelComponent[]{
-                serverDetailsContainer(interaction, serverIdString, server),
-                serverSelectForDetails(interaction)
-        };
+    private static List<MessageTopLevelComponent> addServerSelects(MessageTopLevelComponent component, Interaction interaction) {
+        List<ActionRow> serverSelectRows = serverSelectsForDetails(interaction);
+
+        List<MessageTopLevelComponent> components = new ArrayList<>(1 + serverSelectRows.size());
+        components.add(component);
+        components.addAll(serverSelectRows);
+
+        return components;
+    }
+
+    private static List<MessageTopLevelComponent> detailsComponents(Interaction interaction, String serverIdString, Server server) {
+        return addServerSelects(serverDetailsContainer(interaction, serverIdString, server), interaction);
     }
 
     public static void onListCommand(SlashCommandInteractionEvent event) {
@@ -161,10 +200,7 @@ public final class ListInteractions {
             mainComponent = TextDisplay.of(message);
         }
 
-        event.replyComponents(
-                mainComponent,
-                serverSelectForDetails(event)
-        ).useComponentsV2().setEphemeral(true).queue();
+        event.replyComponents(addServerSelects(mainComponent, event)).useComponentsV2().setEphemeral(true).queue();
     }
 
     public static void onListSelect(StringSelectInteractionEvent event) {
@@ -186,10 +222,9 @@ public final class ListInteractions {
             return;
         }
 
-        event.editComponents(
-                TextDisplay.of("Removed " + inlineServerDisplayName(server.getName())),
-                serverSelectForDetails(event)
-        ).useComponentsV2().queue();
+        event.editComponents(addServerSelects(
+                TextDisplay.of("Removed " + inlineServerDisplayName(server.getName())), event
+        )).useComponentsV2().queue();
         logActionWithServer(event, "removed", server.getName());
     }
 
