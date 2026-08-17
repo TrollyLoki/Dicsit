@@ -48,6 +48,7 @@ import static net.trollyloki.dicsit.InteractionListener.buildId;
 import static net.trollyloki.dicsit.InteractionUtils.*;
 import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.dicsit.LoggingUtils.withMDC;
+import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.SettingsInteractions.SETTINGS_COMMAND_NAME;
 
 @NullMarked
@@ -72,7 +73,8 @@ public final class ListInteractions {
             DISABLE_SAVING_BUTTON_ID = "disable-saving",
             SERVER_CHANNEL_SELECT_ID = "server-channel",
             UNSET_SERVER_CHANNEL_BUTTON_ID = "unset-server-channel",
-            ALLOW_RELOADING_BUTTON_ID = "allow-reloading";
+            ALLOW_RELOADING_BUTTON_ID = "allow-reloading",
+            EVENT_SERVER_BUTTON_ID = "event-server";
 
     private static Container serverDetailsContainer(Interaction interaction, String serverIdString, Server server) {
         List<Button> buttons = new ArrayList<>(3);
@@ -122,7 +124,14 @@ public final class ListInteractions {
                 ActionRow.of(Button.secondary(
                         buildId(ALLOW_RELOADING_BUTTON_ID, serverIdString, !server.isAllowReloading()),
                         "Allow Reloading"
-                ).withEmoji(server.isAllowReloading() ? CHECKBOX_CHECKED_EMOJI : CHECKBOX_EMPTY_EMOJI))
+                ).withEmoji(server.isAllowReloading() ? CHECKBOX_CHECKED_EMOJI : CHECKBOX_EMPTY_EMOJI)),
+                Separator.createInvisible(Separator.Spacing.SMALL),
+                TextDisplay.of("### Event Server"),
+                TextDisplay.of("If checked, " + Dicsit.get().getCommand(DEPLOY_COMMAND_NAME).getAsMention() + " must be used for this server instead of the normal slash commands"),
+                ActionRow.of(Button.secondary(
+                        buildId(EVENT_SERVER_BUTTON_ID, serverIdString, !server.isEventServer()),
+                        "Event Server"
+                ).withEmoji(server.isEventServer() ? CHECKBOX_CHECKED_EMOJI : CHECKBOX_EMPTY_EMOJI))
         );
     }
 
@@ -462,6 +471,21 @@ public final class ListInteractions {
         event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
 
         logActionWithServer(event, (value ? "allowed" : "disallowed") + " reloading", server.getName());
+    }
+
+    public static void onEventServerButton(ButtonInteractionEvent event, String serverIdString, boolean value) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        if (!getGuildManager(event).setEventServer(UUID.fromString(serverIdString), value)) {
+            event.reply("Failed to set event server value").setEphemeral(true).queue();
+            return;
+        }
+
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
+
+        logAction(event, "made " + inlineServerDisplayName(server.getName()) + (value ? "" : " no longer") + " an event server");
     }
 
 }

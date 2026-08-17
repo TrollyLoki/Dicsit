@@ -21,6 +21,7 @@ import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
+import net.trollyloki.dicsit.AttachmentInfo;
 import net.trollyloki.dicsit.GuildManager;
 import net.trollyloki.dicsit.InteractionUtils;
 import net.trollyloki.dicsit.Server;
@@ -41,7 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static net.trollyloki.dicsit.FormattingUtils.inlineServerDisplayName;
@@ -67,19 +67,6 @@ public final class UploadInteractions {
             UPLOAD_CONFIRM_BUTTON_ID = "upload-confirm",
             UPLOAD_AND_DEFER_LOAD_BUTTON_ID = "upload-defer";
 
-    private static final String EXPECTED_FILE_EXTENSION = SaveFileReader.EXTENSION.substring(1);
-    private static final Predicate<Message.Attachment> NOT_SAVE_FILE = attachment -> !EXPECTED_FILE_EXTENSION.equalsIgnoreCase(attachment.getFileExtension());
-
-    private record AttachmentInfo(String url, String fileName) {
-        AttachmentInfo(Message.Attachment attachment) {
-            this(attachment.getUrl(), attachment.getFileName());
-        }
-
-        NamedAttachmentProxy getProxy() {
-            return new NamedAttachmentProxy(url, fileName);
-        }
-    }
-
     private record UploadInfo(AttachmentInfo attachmentInfo, List<String> serverIdStrings) {
     }
 
@@ -87,8 +74,7 @@ public final class UploadInteractions {
     private static final AutoKeyedCache<UploadInfo> UPLOAD_INFO_CACHE = new AutoKeyedCache<>();
 
     public static void onUploadFromMessage(MessageContextInteractionEvent event) {
-        List<Message.Attachment> attachments = findMessageAttachments(event);
-        attachments.removeIf(NOT_SAVE_FILE);
+        List<Message.Attachment> attachments = findSaveFileAttachments(event);
         if (attachments.isEmpty()) {
             event.reply("Could not find any save files attached to that message").setEphemeral(true).queue();
             return;
@@ -180,7 +166,7 @@ public final class UploadInteractions {
         switch (save.getType()) {
             case FILE_UPLOAD -> {
                 Message.Attachment attachment = save.getAsAttachmentList().getFirst();
-                if (NOT_SAVE_FILE.test(attachment)) {
+                if (!isSaveFile(attachment)) {
                     event.reply(attachment.getUrl() + " is not a save file").setEphemeral(true).queue();
                     return;
                 }

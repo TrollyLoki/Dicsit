@@ -19,6 +19,7 @@ import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
+import net.trollyloki.jicsit.save.SaveFileReader;
 import net.trollyloki.jicsit.save.SaveHeader;
 import net.trollyloki.jicsit.save.Session;
 import net.trollyloki.jicsit.server.https.CommandResult;
@@ -59,7 +60,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static net.trollyloki.dicsit.FormattingUtils.defaultSaveName;
 import static net.trollyloki.dicsit.FormattingUtils.formatDuration;
@@ -86,12 +89,25 @@ public final class InteractionUtils {
 
     private static final int[] DELAY_OPTIONS_SECONDS = {-1, 5, 10, 20, 30, 60, 2 * 60, 3 * 60, 4 * 60, 5 * 60, 10 * 60, 20 * 60, 30 * 60, 60 * 60};
 
+    private static final String EXPECTED_SAVE_FILE_EXTENSION = SaveFileReader.EXTENSION.substring(1);
+    private static final Predicate<Message.Attachment> NOT_SAVE_FILE = attachment -> !EXPECTED_SAVE_FILE_EXTENSION.equalsIgnoreCase(attachment.getFileExtension());
+
     public static List<Message.Attachment> findMessageAttachments(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = new ArrayList<>(event.getTarget().getAttachments());
         for (MessageSnapshot snapshot : event.getTarget().getMessageSnapshots()) {
             attachments.addAll(snapshot.getAttachments());
         }
         return attachments;
+    }
+
+    public static List<Message.Attachment> findSaveFileAttachments(MessageContextInteractionEvent event) {
+        List<Message.Attachment> attachments = findMessageAttachments(event);
+        attachments.removeIf(NOT_SAVE_FILE);
+        return attachments;
+    }
+
+    public static boolean isSaveFile(Message.Attachment attachment) {
+        return !NOT_SAVE_FILE.test(attachment);
     }
 
     public static GuildManager getGuildManager(Interaction interaction) {
@@ -212,6 +228,21 @@ public final class InteractionUtils {
         return servers;
     }
 
+    public static @Nullable Map<UUID, Server> getAllEventServersIfAdmin(IReplyCallback callback) {
+        if (isNotAdmin(callback))
+            return null;
+
+        Map<UUID, Server> eventServers = getGuildManager(callback).getServers().entrySet().stream()
+                .filter(entry -> entry.getValue().isEventServer())
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        if (eventServers.isEmpty()) {
+            callback.reply("No servers have been made event servers").setEphemeral(true).queue();
+            return null;
+        }
+        return eventServers;
+    }
+
     public static void logAction(Interaction interaction, String action) {
         getGuildManager(interaction).logAction(interaction.getUser(), action);
     }
@@ -230,7 +261,8 @@ public final class InteractionUtils {
 
         int count = 0;
         for (Map.Entry<?, Server> entry : servers.entrySet()) {
-            if (forSaving && entry.getValue().isDisableSaving()) continue;
+            Server server = entry.getValue();
+            if (server.isEventServer() || forSaving && server.isDisableSaving()) continue;
 
             if (builder.getOptions().size() < StringSelectMenu.OPTIONS_MAX_AMOUNT) {
                 builder.addOption(serverDisplayName(entry.getValue().getName()), entry.getKey().toString());

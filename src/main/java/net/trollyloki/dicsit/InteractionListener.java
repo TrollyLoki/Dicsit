@@ -33,6 +33,7 @@ import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.onCh
 import static net.trollyloki.dicsit.interactions.ChangePasswordInteractions.onChangePasswordModal;
 import static net.trollyloki.dicsit.interactions.CreativeModeInteractions.*;
 import static net.trollyloki.dicsit.interactions.DeferredActionsInteractions.*;
+import static net.trollyloki.dicsit.interactions.DeployInteractions.*;
 import static net.trollyloki.dicsit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.dicsit.interactions.InvalidateTokensInteractions.onInvalidateTokensButton;
 import static net.trollyloki.dicsit.interactions.ListInteractions.*;
@@ -85,6 +86,7 @@ public class InteractionListener extends ListenerAdapter {
                 case UPLOAD_COMMAND_NAME -> onUploadCommand(event);
                 case BACKUP_COMMAND_NAME -> onBackupCommand(event);
                 case DEFERRED_ACTIONS_COMMAND_NAME -> onDeferredActionsCommand(event);
+                case DEPLOY_COMMAND_NAME -> onDeployCommand(event);
                 default -> LOGGER.warn("Unknown slash command {}", event.getName());
             }
         } finally {
@@ -98,6 +100,7 @@ public class InteractionListener extends ListenerAdapter {
         try {
             switch (event.getName()) {
                 case UPLOAD_CONTEXT_COMMAND_NAME -> onUploadFromMessage(event);
+                case DEPLOY_SAVE_CONTEXT_COMMAND_NAME -> onDeploySaveFromMessage(event);
                 case ANALYZE_SAVE_CONTEXT_COMMAND_NAME -> onAnalyzeSaveFromMessage(event);
                 default -> LOGGER.warn("Unknown message context command {}", event.getName());
             }
@@ -146,6 +149,7 @@ public class InteractionListener extends ListenerAdapter {
                 case UNSET_SERVER_CHANNEL_BUTTON_ID -> onUnsetServerChannelButton(event, id[1]);
                 case ALLOW_RELOADING_BUTTON_ID -> onAllowReloadingButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case DISABLE_SAVING_BUTTON_ID -> onDisableSavingButton(event, id[1], Boolean.parseBoolean(id[2]));
+                case EVENT_SERVER_BUTTON_ID -> onEventServerButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case DASHBOARD_REFRESH_BUTTON_ID -> onDashboardRefreshButton(event, id[1]);
                 case RELOAD_CANCEL_BUTTON_ID -> onReloadCancelButton(event, id[1], id[2]);
                 case RELOAD_CONFIRM_BUTTON_ID -> onReloadConfirmButton(event, false, id[1], id[2], false);
@@ -176,6 +180,10 @@ public class InteractionListener extends ListenerAdapter {
                         onCancelDeferredReloadButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case CANCEL_DEFERRED_RESTART_BUTTON_ID ->
                         onCancelDeferredRestartButton(event, id[1], Boolean.parseBoolean(id[2]));
+                case DEPLOY_SAVE_CANCEL_BUTTON_ID -> onDeploySaveCancelButton(event, id[1], id[2]);
+                case DEPLOY_SAVE_CONFIRM_BUTTON_ID -> onDeploySaveConfirmButton(event, id[1], id[2]);
+                case DEPLOY_RESTART_CANCEL_BUTTON_ID -> onDeployRestartCancelButton(event, id[1]);
+                case DEPLOY_RESTART_CONFIRM_BUTTON_ID -> onDeployRestartConfirmButton(event, id[1]);
                 default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
             }
         } finally {

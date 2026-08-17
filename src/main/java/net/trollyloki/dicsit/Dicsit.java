@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.utils.messages.MessageRequest;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -29,6 +30,10 @@ import static net.trollyloki.dicsit.interactions.AddInteractions.ADD_COMMAND_NAM
 import static net.trollyloki.dicsit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.DeferredActionsInteractions.DEFERRED_ACTIONS_COMMAND_NAME;
+import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_COMMAND_NAME;
+import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_RESTART_SUBCOMMAND_NAME;
+import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_SAVE_CONTEXT_COMMAND_NAME;
+import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_SAVE_SUBCOMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.ListInteractions.LIST_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.ReloadInteractions.RELOAD_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.ReloadInteractions.RESTART_COMMAND_NAME;
@@ -134,6 +139,13 @@ public class Dicsit {
                 Commands.message(UPLOAD_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),
                 Commands.slash(BACKUP_COMMAND_NAME, "Create a backup of saves from one or more servers").setContexts(InteractionContextType.GUILD),
                 Commands.slash(DEFERRED_ACTIONS_COMMAND_NAME, "Manage deferred actions").setContexts(InteractionContextType.GUILD),
+                Commands.slash(DEPLOY_COMMAND_NAME, "Deploy a save to or restart of all event servers").setContexts(InteractionContextType.GUILD).addSubcommands(
+                        new SubcommandData(DEPLOY_SAVE_SUBCOMMAND_NAME, "Deploy a save to all event servers").addOptions(
+                                new OptionData(OptionType.ATTACHMENT, "save", "Save file to deploy", true)
+                        ),
+                        new SubcommandData(DEPLOY_RESTART_SUBCOMMAND_NAME, "Deploy a restart of all event servers")
+                ),
+                Commands.message(DEPLOY_SAVE_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),
                 Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME).setContexts(
                         InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL
                 ).setIntegrationTypes(IntegrationType.GUILD_INSTALL, IntegrationType.USER_INSTALL)

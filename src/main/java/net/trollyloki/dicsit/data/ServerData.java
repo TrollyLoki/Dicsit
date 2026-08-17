@@ -28,6 +28,7 @@ public class ServerData implements Server {
     private long offlineAlertDelaySeconds = -1;
     private boolean allowReloading = false;
     private boolean disableSaving = false;
+    private boolean eventServer = false;
 
     private @Nullable String deferredLoadSaveName;
     private boolean deferredReload;
@@ -117,6 +118,15 @@ public class ServerData implements Server {
 
     public void setDisableSaving(boolean disableSaving) {
         this.disableSaving = disableSaving;
+    }
+
+    @Override
+    public boolean isEventServer() {
+        return eventServer;
+    }
+
+    public void setEventServer(boolean eventServer) {
+        this.eventServer = eventServer;
     }
 
     @Override

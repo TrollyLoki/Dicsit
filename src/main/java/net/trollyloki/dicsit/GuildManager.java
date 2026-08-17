@@ -427,6 +427,19 @@ public class GuildManager {
         return true;
     }
 
+    public boolean setEventServer(UUID serverId, boolean eventServer) {
+        ServerData server = data.getServers().get(serverId);
+        if (server == null) {
+            LOGGER.warn("Could not set event server value for unknown server {}", serverId);
+            return false;
+        }
+
+        server.setEventServer(eventServer);
+        save();
+
+        return true;
+    }
+
     public @Nullable Duration getOfflineAlertDelay(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
         if (server == null) return null;
