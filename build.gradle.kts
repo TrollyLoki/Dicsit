@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jspecify:jspecify:1.0.0")
+    implementation("org.jspecify:jspecify:1.0.1")
     runtimeOnly(libs.logback.classic)
 
     implementation(libs.jda) {
